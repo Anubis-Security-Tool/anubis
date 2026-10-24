@@ -84,7 +84,9 @@ function initManagedBrowser (app, {
       if (req.method === 'GET' && ['/', '/index.html'].includes(pathname)) {
         const info = await rpc('browserInfo')
         if (generation !== authGeneration) return res.status(401).json({ error: 'Desktop authentication required' })
-        const token = info.requirePassword ? '' : issue(true)
+        const token = sessionFor(req)
+          ? req.headers.token || req.query.token
+          : info.requirePassword ? '' : issue(true)
         const version = rendererVersion
         const globals = {
           ...info,
@@ -105,7 +107,14 @@ function initManagedBrowser (app, {
         delete globals.requirePassword
         return res.type('html').send(`<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Managed Anubis desktop</title><link rel="stylesheet" href="/css/style-${version}.css">${req.managedContextUi ? '<script src="/_anubis/context-ui.js" defer></script>' : ''}</head><body><div role="status" id="managed-connectivity">Managed connectivity &mdash; authenticated remote desktop access</div><div id="container"></div><style id="theme-css"></style><style id="custom-css"></style><script>window.et=${escapeJson(globals)};${token ? `localStorage.setItem('tokenElecterm',${escapeJson(token)});` : ''}</script><script type="module" src="/js/basic-${version}.js"></script></body></html>`)
       }
-      if (req.method === 'POST' && pathname === '/api/login') {
+      if (req.method === 'POST' && ['/api/login', '/api/managed-password-login'].includes(pathname)) {
+        if (pathname === '/api/managed-password-login') {
+          const info = await rpc('browserInfo')
+          if (generation !== authGeneration) return res.status(401).json({ error: 'Desktop authentication required' })
+          if (!info.requirePassword) {
+            return res.status(409).json({ error: 'Set a password for this workspace in the local desktop application before using Web access.' })
+          }
+        }
         if (now() - loginWindow >= 60000) {
           failedLogins = 0
           loginWindow = now()

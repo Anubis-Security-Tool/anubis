@@ -1,6 +1,8 @@
 .context-menu
   position: relative
   width 280px
+  color var(--text)
+  background var(--main)
 
 .context-item
   -webkit-app-region no-drag
@@ -9,14 +11,14 @@
   line-height 28px
   padding 0 16px
   &:hover
-    background var(--ui-hover)
+    background var(--main-light)
     color var(--text)
     cursor pointer
   &.disabled
     color var(--text-disabled)
     &:hover
-      color #777
-      background #333
+      color var(--text-disabled)
+      background transparent
       cursor not-allowed
   &.zoom-item
     height 36px
@@ -34,7 +36,7 @@
   hr
     margin 0
     border none
-    border-bottom 1px solid var(--main-darker)
+    border-bottom 1px solid var(--border)
 .sub-context-menu
   display none
   width 200px
@@ -42,7 +44,8 @@
   left 100%
   top 0
   background var(--main)
-  box-shadow 0px 0px 3px 3px var(--main-darker)
+  border 1px solid var(--border)
+  box-shadow 0px 0px 3px 3px var(--main-dark)
   max-height 300px
   overflow-y scroll
   color var(--text)
@@ -58,8 +61,8 @@
   white-space nowrap
   text-overflow ellipsis
   &:hover, &.active
-    background-color var(--ui-hover)
-    color var(--text-light)
+    background-color var(--main-light)
+    color var(--text)
 .bookmarks-sub-context-menu
   width 380px
   padding 20px 10px 10px 20px

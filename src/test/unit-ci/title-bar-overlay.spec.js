@@ -15,14 +15,15 @@ describe('title bar overlay colors (Windows system title bar)', () => {
 
   test('uses the theme tab bar color and text color', async () => {
     const { getOverlayColors } = await load()
-    const theme = { 'main-dark': '#000', text: '#ddd' }
-    assert.deepEqual(getOverlayColors(theme), { color: '#000000', symbolColor: '#dddddd' })
+    const theme = { main: '#1b1b1b', 'main-dark': '#000', text: '#ddd' }
+    assert.deepEqual(getOverlayColors(theme), { color: '#1b1b1b', symbolColor: '#dddddd' })
+    assert.deepEqual(getOverlayColors({ main: '#ededed', text: '#555' }), { color: '#ededed', symbolColor: '#555555' })
   })
 
   test('stays opaque regardless of theme alpha', async () => {
     const { getOverlayColors } = await load()
     // the window cannot be see-through in WCO mode, so the overlay must not be
-    assert.equal(getOverlayColors({ 'main-dark': '#1e1e1ecc', text: '#fff' }).color, '#1e1e1e')
+    assert.equal(getOverlayColors({ main: '#1e1e1ecc', 'main-dark': '#000', text: '#fff' }).color, '#1e1e1e')
   })
 
   test('falls back to defaults for missing or invalid theme colors', async () => {

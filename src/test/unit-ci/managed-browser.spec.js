@@ -135,6 +135,28 @@ test('desktop password remains required after transport authentication', async t
   assert.equal((await fetch(f.origin + '/api/get-constants', { headers: { ...f.headers, token } })).status, 200)
 })
 
+test('gateway password login refuses unconfigured profiles and reuses only an authenticated bootstrap token', async t => {
+  const unset = await fixture(t)
+  const rejected = await fetch(unset.origin + '/api/managed-password-login', {
+    method: 'POST',
+    headers: { ...unset.headers, 'content-type': 'application/json' },
+    body: JSON.stringify({ password: 'anything' })
+  })
+  assert.equal(rejected.status, 409)
+  const configured = await fixture(t, { requirePassword: true })
+  const login = password => fetch(configured.origin + '/api/managed-password-login', {
+    method: 'POST',
+    headers: { ...configured.headers, 'content-type': 'application/json' },
+    body: JSON.stringify({ password })
+  })
+  assert.equal((await login('wrong')).status, 401)
+  const response = await login('desktop-password')
+  assert.equal(response.status, 200)
+  const token = await response.json()
+  const page = await fetch(configured.origin, { headers: { ...configured.headers, token } })
+  assert.match(await page.text(), new RegExp(`localStorage\\.setItem\\('tokenElecterm',"${token}"\\)`))
+})
+
 test('real browser WebSockets proxy text and binary using private native credentials', async t => {
   const f = await fixture(t)
   for (const [route, query] of [

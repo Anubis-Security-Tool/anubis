@@ -28,7 +28,7 @@ const toHex = v => Math.round(v).toString(16).padStart(2, '0')
 // through the overlay area, and following config.opacity here would only make
 // the caption strip disagree with the tab bar it sits on.
 export function getOverlayColors (themeConfig = {}) {
-  const bg = parseHexColor(themeConfig['main-dark']) || [0, 0, 0]
+  const bg = parseHexColor(themeConfig.main) || parseHexColor(themeConfig['main-dark']) || [0, 0, 0]
   const fg = parseHexColor(themeConfig.text) || [221, 221, 221]
   return {
     color: '#' + bg.map(toHex).join(''),

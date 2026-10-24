@@ -313,6 +313,12 @@ class Store {
         colorLink: themeConf['text-light'],
         motion: false
       },
+      components: {
+        Popover: {
+          colorBgElevated: themeConf.main,
+          colorText: themeConf.text
+        }
+      },
       algorithm: isColorDark(themeConf.main) ? theme.darkAlgorithm : theme.defaultAlgorithm
     }
   }

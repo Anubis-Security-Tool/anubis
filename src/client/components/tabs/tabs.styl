@@ -3,8 +3,8 @@
   position relative
   height 36px
   overflow hidden
-  background var(--main-dark)
-  border-bottom 1px solid var(--ui-border)
+  background var(--main)
+  border-bottom 1px solid var(--border)
   z-index 12
   ::-webkit-scrollbar
     width 0
@@ -57,7 +57,7 @@
   line-height 36px
   margin 0 1px 0 0
   border-radius 8px 8px 0 0
-  background var(--main-dark)
+  background var(--main)
   text-align center
   color var(--text-dark)
   &.tab-last
@@ -66,7 +66,7 @@
     display none
   &.active
     color var(--text)
-    background var(--main)
+    background var(--main-light)
     box-shadow inset 0 2px 0 var(--text-dark)
   &.active-all
     font-weight bold
@@ -194,10 +194,10 @@
   padding 5px 10px
   color var(--text)
   &:hover
-    color var(--primary)
+    color var(--text)
     cursor pointer
     .icon-maximize
-      border-color var(--primary)
+      border-color var(--text)
 .icon-maximize
   width 10px
   height 7px
@@ -213,7 +213,7 @@
       top 3px
       width 8px
       height 4px
-      border 1px solid text
+      border 1px solid var(--text)
       border-top none
       border-right none
 
@@ -228,7 +228,7 @@
   .window-control-minimize
   .window-control-maximize
     &:hover
-      background var(--main-dark)
+      background var(--main-light)
   .window-control-close:hover
     background var(--error)
 
