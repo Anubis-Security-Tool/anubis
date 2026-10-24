@@ -5,62 +5,97 @@
     display flex
     align-items center
     flex-shrink 0
-    height 60px
+    height 64px
     padding 0 16px
     border-bottom 1px solid var(--border)
+    .sidebar-brand-name
+      font-size 14px
+      line-height 20px
+      white-space nowrap
+      overflow hidden
+      text-overflow ellipsis
   .preview-navigation
     flex 1
     min-height 0
     overflow-y auto
     overflow-x hidden
-    padding 12px 10px
+    padding 8px 10px
     scrollbar-width thin
   .preview-group
+    position relative
     & + .preview-group
-      margin-top 14px
-      padding-top 14px
-      border-top 1px solid var(--border)
+      margin-top 8px
+      padding-top 0
+      border-top 0
+    &[open]::before
+      content ''
+      position absolute
+      left 22px
+      top 44px
+      bottom 4px
+      border-left 1px solid var(--border)
+      pointer-events none
     summary
       display flex
       align-items center
-      gap 9px
-      padding 5px 10px 10px
+      gap 10px
+      min-height 40px
+      padding 10px 12px
+      border-radius 8px
       list-style none
-      color var(--text-dark)
-      font-size 11px
+      color var(--text)
+      font-size 14px
       font-weight 600
+      line-height 20px
       cursor pointer
+      &:hover
+        background var(--main-light)
+      &:focus-visible
+        outline 2px solid var(--primary)
+        outline-offset -2px
       &::-webkit-details-marker
         display none
       > svg:first-child
         color inherit
+        flex-shrink 0
+        width 20px
+        height 20px
       .preview-chevron
         margin-left auto
+        flex-shrink 0
+        width 14px
+        height 14px
         transform rotate(-90deg)
     &[open] .preview-chevron
       transform rotate(0)
   .preview-menu-item
     display flex
     align-items center
-    gap 11px
-    width 100%
-    min-height 36px
-    margin 2px 0
-    padding 8px 12px
+    gap 10px
+    width calc(100% - 28px)
+    min-height 40px
+    margin 1px 0 1px 28px
+    padding 10px 12px
     border 0
-    border-radius 7px
+    border-radius 8px
     background transparent
     color var(--text-dark)
     font inherit
-    font-size 13px
+    font-size 14px
+    line-height 20px
     text-align left
     cursor pointer
     > svg
       flex-shrink 0
+      width 20px
+      height 20px
+      stroke-width 1.75
     &:hover
     &.active
       background var(--main-light)
       color var(--text)
+    &.active
+      font-weight 500
     &:focus-visible
       outline 2px solid var(--primary)
       outline-offset -2px
@@ -95,11 +130,16 @@
       padding 0 5px
     .preview-navigation
       padding 10px 5px
+    .preview-group[open]::before
+      display none
     .preview-group summary
     .preview-menu-item
       justify-content center
       padding-left 0
       padding-right 0
+    .preview-menu-item
+      width 100%
+      margin-left 0
     .preview-footer
       justify-content center
       padding 4px 5px
