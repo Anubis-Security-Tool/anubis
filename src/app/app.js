@@ -25,9 +25,7 @@ function startDesktop () {
   const path = require('path')
   const marker = path.join(path.dirname(process.execPath), 'anubis-machine-install.json')
   const machineInstalled = process.platform === 'win32' && require('fs').existsSync(marker)
-  if (process.platform === 'win32' &&
-      (process.argv.includes('--anubis-machine-client') ||
-      (!process.argv.includes('--standalone') && machineInstalled))) {
+  if (process.platform === 'win32' && process.argv.includes('--anubis-machine-client')) {
     require('./lib/machine-client-entry').startMachineClient().catch(() => {
       require('electron').dialog.showErrorBox('Anubis-Security-Tool', 'Windows machine client initialization failed. Check the protected installation and service.')
       electronApp.exit(1)
