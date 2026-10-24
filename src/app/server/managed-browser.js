@@ -81,6 +81,27 @@ function initManagedBrowser (app, {
     try {
       const pathname = req.path
       const generation = authGeneration
+      if (req.method === 'POST' && pathname === '/api/managed-role-login') {
+        const value = req.body
+        if (!value || Object.keys(value).sort().join(',') !== 'bindingId,expiresAt,role' ||
+            value.role !== 'administrator' || !/^[a-f0-9]{64}$/.test(value.bindingId) ||
+            value.bindingId !== req.headers['x-anubis-managed-session'] ||
+            !Number.isSafeInteger(value.expiresAt) || value.expiresAt <= now() || value.expiresAt > now() + SESSION_TTL) {
+          return res.status(403).json({ error: 'Invalid managed administrator authorization' })
+        }
+        const ok = await rpc('browserRoleLogin', ['administrator'])
+        if (!ok || generation !== authGeneration || value.expiresAt <= now()) return res.status(401).json({ error: 'Desktop authentication required' })
+        const token = issue(true)
+        sessions.get(token).expires = value.expiresAt
+        return res.json({ token, bindingId: value.bindingId, role: 'administrator', expiresAt: value.expiresAt })
+      }
+      if (req.method === 'POST' && pathname === '/api/managed-password-login') {
+        if (now() - loginWindow >= 60000) { failedLogins = 0; loginWindow = now() }
+        if (++failedLogins > 10) return res.status(429).json({ error: 'Too many desktop login attempts' })
+        const ok = await rpc('browserUserLogin', [req.body?.password])
+        if (!ok || generation !== authGeneration) return res.status(401).json({ error: 'Invalid Web user password' })
+        return res.json(issue(true))
+      }
       if (req.method === 'GET' && ['/', '/index.html'].includes(pathname)) {
         const info = await rpc('browserInfo')
         if (generation !== authGeneration) return res.status(401).json({ error: 'Desktop authentication required' })
@@ -107,14 +128,7 @@ function initManagedBrowser (app, {
         delete globals.requirePassword
         return res.type('html').send(`<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Managed Anubis desktop</title><link rel="stylesheet" href="/css/style-${version}.css">${req.managedContextUi ? '<script src="/_anubis/context-ui.js" defer></script>' : ''}</head><body><div role="status" id="managed-connectivity">Managed connectivity &mdash; authenticated remote desktop access</div><div id="container"></div><style id="theme-css"></style><style id="custom-css"></style><script>window.et=${escapeJson(globals)};${token ? `localStorage.setItem('tokenElecterm',${escapeJson(token)});` : ''}</script><script type="module" src="/js/basic-${version}.js"></script></body></html>`)
       }
-      if (req.method === 'POST' && ['/api/login', '/api/managed-password-login'].includes(pathname)) {
-        if (pathname === '/api/managed-password-login') {
-          const info = await rpc('browserInfo')
-          if (generation !== authGeneration) return res.status(401).json({ error: 'Desktop authentication required' })
-          if (!info.requirePassword) {
-            return res.status(409).json({ error: 'Set a password for this workspace in the local desktop application before using Web access.' })
-          }
-        }
+      if (req.method === 'POST' && pathname === '/api/login') {
         if (now() - loginWindow >= 60000) {
           failedLogins = 0
           loginWindow = now()
@@ -153,7 +167,7 @@ function initManagedBrowser (app, {
         req.managedSession = session
         req.managedRpc = (func, args) => {
           if (!session.unlocked) throw new Error('Desktop authentication required')
-          if (['managedMcpEndpoint', 'browserInfo', 'browserLogin'].includes(func)) {
+          if (['managedMcpEndpoint', 'browserInfo', 'browserLogin', 'browserUserLogin', 'browserRoleLogin'].includes(func)) {
             throw new Error('Internal managed function is not a browser API')
           }
           return rpc(func, args)

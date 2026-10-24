@@ -48,6 +48,8 @@ async function fixture (t, { requirePassword = false } = {}) {
       }
     }
     if (func === 'browserLogin') return args[0] === 'desktop-password'
+    if (func === 'browserUserLogin') return args[0] === 'web-user-password'
+    if (func === 'browserRoleLogin') return args[0] === 'administrator'
     return createBrowserRpc({
       functions: {},
       getConfig: () => ({}),
@@ -135,14 +137,14 @@ test('desktop password remains required after transport authentication', async t
   assert.equal((await fetch(f.origin + '/api/get-constants', { headers: { ...f.headers, token } })).status, 200)
 })
 
-test('gateway password login refuses unconfigured profiles and reuses only an authenticated bootstrap token', async t => {
+test('Web user passwords are independent of native profile passwords and reuse authenticated bootstrap tokens', async t => {
   const unset = await fixture(t)
-  const rejected = await fetch(unset.origin + '/api/managed-password-login', {
+  const signedIn = await fetch(unset.origin + '/api/managed-password-login', {
     method: 'POST',
     headers: { ...unset.headers, 'content-type': 'application/json' },
-    body: JSON.stringify({ password: 'anything' })
+    body: JSON.stringify({ password: 'web-user-password' })
   })
-  assert.equal(rejected.status, 409)
+  assert.equal(signedIn.status, 200)
   const configured = await fixture(t, { requirePassword: true })
   const login = password => fetch(configured.origin + '/api/managed-password-login', {
     method: 'POST',
@@ -150,11 +152,39 @@ test('gateway password login refuses unconfigured profiles and reuses only an au
     body: JSON.stringify({ password })
   })
   assert.equal((await login('wrong')).status, 401)
-  const response = await login('desktop-password')
+  const response = await login('web-user-password')
   assert.equal(response.status, 200)
   const token = await response.json()
   const page = await fetch(configured.origin, { headers: { ...configured.headers, token } })
   assert.match(await page.text(), new RegExp(`localStorage\\.setItem\\('tokenElecterm',"${token}"\\)`))
+})
+
+test('administrator grants require the private transport, exact browser binding and bounded expiry', async t => {
+  const f = await fixture(t, { requirePassword: true })
+  const bindingId = 'a'.repeat(64)
+  const expiresAt = Date.now() + 60000
+  const request = (payload, headers = {}) => fetch(f.origin + '/api/managed-role-login', {
+    method: 'POST',
+    headers: { ...f.headers, 'content-type': 'application/json', ...headers },
+    body: JSON.stringify(payload)
+  })
+  const payload = { role: 'administrator', bindingId, expiresAt }
+  assert.equal((await request(payload)).status, 403)
+  assert.equal((await request(payload, { 'x-anubis-managed-session': 'b'.repeat(64) })).status, 403)
+  for (const value of [
+    { ...payload, expiresAt: Date.now() - 1 },
+    { ...payload, expiresAt: Date.now() + 9 * 60 * 60 * 1000 },
+    { ...payload, role: 'user' },
+    { ...payload, extra: true }
+  ]) assert.equal((await request(value, { 'x-anubis-managed-session': bindingId })).status, 403)
+  const result = await request(payload, { 'x-anubis-managed-session': bindingId })
+  assert.equal(result.status, 200)
+  const value = await result.json()
+  assert.deepEqual(Object.keys(value).sort(), ['bindingId', 'expiresAt', 'role', 'token'])
+  assert.equal(value.role, 'administrator')
+  assert.equal(value.bindingId, bindingId)
+  assert.equal(value.expiresAt, expiresAt)
+  assert.match(value.token, /^[a-f0-9]{64}$/)
 })
 
 test('real browser WebSockets proxy text and binary using private native credentials', async t => {

@@ -25,7 +25,7 @@ function sanitizeConfig (config) {
   return result
 }
 
-function createBrowserRpc ({ functions, getConfig, getPassword, constants, init, onAuthorizedLogin }) {
+function createBrowserRpc ({ functions, getConfig, getPassword, constants, init, onAuthorizedLogin, onAuthorizedWebLogin, webPassword }) {
   return async (func, args = []) => {
     if (!Array.isArray(args)) throw new Error('Invalid browser RPC arguments')
     if (func === 'browserInfo') {
@@ -44,6 +44,16 @@ function createBrowserRpc ({ functions, getConfig, getPassword, constants, init,
       const valid = actual.length === expected.length && crypto.timingSafeEqual(actual, expected)
       if (valid && onAuthorizedLogin) await onAuthorizedLogin(args[0])
       return valid
+    }
+    if (func === 'browserUserLogin') {
+      if (!webPassword || !onAuthorizedWebLogin || args.length !== 1 || !webPassword.verify(args[0])) return false
+      await onAuthorizedWebLogin()
+      return true
+    }
+    if (func === 'browserRoleLogin') {
+      if (!onAuthorizedWebLogin || args.length !== 1 || args[0] !== 'administrator') return false
+      await onAuthorizedWebLogin()
+      return true
     }
     if (func === 'init') {
       const result = await init()

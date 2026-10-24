@@ -372,10 +372,31 @@ function initIpc () {
       )
     }
   }
+  const webPassword = globalState.get('headlessRuntime')
+    ? require('./managed-web-password').createManagedWebPassword(app.getPath('userData'))
+    : null
   globalState.set('managedBrowserRpc', require('./managed-browser-rpc').createBrowserRpc({
     functions: asyncGlobals,
     getConfig: () => globalState.get('config'),
     getPassword: require('./get-config').getDbConfig,
+    webPassword,
+    onAuthorizedWebLogin: globalState.get('headlessRuntime')
+      ? async () => {
+        const config = await require('./get-config').getDbConfig()
+        if (config.hashedPassword) {
+          const port = await require('./get-port')()
+          const response = await require('axios').post(`http://127.0.0.1:${port}/auth`, {
+            token: config.hashedPassword
+          }, { proxy: false, timeout: 5000 })
+          if (response.status !== 200) throw new Error('Headless workspace authorization failed')
+        }
+        const win = globalState.get('win')
+        if (!win || win.isDestroyed()) throw new Error('Headless workspace is unavailable')
+        globalState.set('headlessAuthorizedLogin', true)
+        win.webContents.send('headless-authorized-login')
+        await require('./machine-host-entry').waitForWorkspace(win, false, Date.now() + 10000)
+      }
+      : undefined,
     onAuthorizedLogin: globalState.get('headlessRuntime')
       ? async password => {
         if (!await checkPassword(password)) throw new Error('Headless workspace authentication changed')

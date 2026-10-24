@@ -3,17 +3,30 @@
 Open an approved computer's `https://device-<id>.anubis.locker/` address directly.
 The address identifies the computer; it does not authorize access.
 
-Sign in with the **application password for the SYSTEM workspace**. It is not
-your Windows password, management administrator token or an MCP credential.
+Choose **User** or **Administrator** on the sign-in form. These are Anubis Web
+access roles, not Windows accounts, desktop profile passwords, management
+administrator tokens or MCP credentials.
 The SYSTEM service must be running and its managed identity must have been
-approved. The gateway does not need an administrator navigation ticket for
-ordinary password sign-in.
+approved. The gateway does not need an administrator navigation ticket for password
+sign-in.
 
-An unset password is not accepted as remote authentication. Configure the
-workspace password from the local Windows desktop's native SYSTEM password
-settings. Initial setup is permitted only when the password is truly unset;
-changing an existing password requires the old password and local OS-authorized
-native admission. No remote password-reset or password-retrieval API is added.
+Each local managed profile creates its own random initial user password in
+`web-user-password.txt` inside its application user-data directory. For the
+machine SYSTEM profile, the default location is
+`C:\ProgramData\Anubis\Host\AnubisHost\system-profile\anubis\web-user-password.txt`.
+An OS-authorized local user can edit this UTF-8 file: use one line containing
+12 to 4096 characters. File edits apply to subsequent logins without restarting
+the application. The password is not uploaded to the management server. There
+is no shared factory password for all computers.
+
+The separate Web administrator password is configured in the authenticated
+management dashboard for each device. The controller stores it encrypted and
+keeps a salted verification hash. Explicit reveal is administrator-only.
+Changing it revokes that device's administrator browser sessions.
+
+These operations do not change Windows passwords, native profile password
+hashes, storage keys or DPAPI data. Native desktop profile password changes
+remain local OS-authorized operations with old-password verification.
 
 The browser receives a host-only Secure, HttpOnly, SameSite cookie. Reloading
 keeps the login; the default session lifetime is eight hours. **Sign out**
