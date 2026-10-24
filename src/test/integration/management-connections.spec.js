@@ -86,6 +86,81 @@ async function fixture (t, agents) {
   return { page, context, base, state, adminToken }
 }
 
+test('Web administrator settings save and explicitly reveal only in memory with timed secret cleanup', { timeout: 60000 }, async t => {
+  const original = agent('1')
+  const f = await fixture(t, [original])
+  const { page } = f
+  let password
+  let revision = 0
+  const calls = []
+  await page.route('**/web-admin**', async route => {
+    const request = route.request()
+    assert.equal(request.headers().authorization, 'Bearer ' + f.adminToken)
+    calls.push({ method: request.method(), path: new URL(request.url()).pathname })
+    const metadata = { configured: revision > 0, revision, role: 'administrator', workspace: 'SYSTEM' }
+    if (request.method() === 'GET') return route.fulfill({ json: metadata })
+    const input = request.postDataJSON()
+    assert.equal(input.fingerprint, original.fingerprint)
+    if (request.url().endsWith('/reveal')) return route.fulfill({ json: { ...metadata, password } })
+    assert.equal(input.expectedRevision, revision)
+    password = input.password
+    revision++
+    return route.fulfill({ json: { ...metadata, revision, configured: true } })
+  })
+  await page.getByRole('button', { name: 'Web password settings', exact: true }).click()
+  await expect(page.locator('#web-admin-access')).toBeVisible()
+  await expect(page.locator('#reveal-web-admin')).toBeDisabled()
+  await page.locator('#web-admin-password').fill('R7!vL9@zC4#kT8$x')
+  await page.locator('#save-web-admin').click()
+  await expect(page.locator('#web-admin-status')).toContainText('Revision 1')
+  await expect(page.locator('#web-admin-password')).toHaveValue('')
+  assert.equal(await page.locator('body').innerText().then(text => text.includes(password)), false)
+  page.on('dialog', dialog => dialog.accept())
+  await page.locator('#reveal-web-admin').click()
+  await expect(page.locator('#web-admin-secret')).toHaveText(password)
+  await page.clock.fastForward(15001)
+  await expect(page.locator('#web-admin-secret')).toBeHidden()
+  await expect(page.locator('#web-admin-secret')).toHaveText('')
+  assert.deepEqual(await page.evaluate(() => ({
+    local: Object.keys(window.localStorage), session: Object.keys(window.sessionStorage)
+  })), { local: [], session: [] })
+  assert.ok(calls.every(call => !call.path.includes(password)))
+  await page.locator('#reveal-web-admin').click()
+  await expect(page.locator('#web-admin-secret')).toHaveText(password)
+  await page.locator('#sign-out').click()
+  await expect(page.locator('#web-admin-secret')).toHaveText('')
+  await expect(page.locator('#web-admin-access')).toBeHidden()
+})
+
+test('a delayed Web password reveal cannot repopulate after inventory becomes stale', { timeout: 60000 }, async t => {
+  const original = agent('1')
+  const f = await fixture(t, [original])
+  const { page, state } = f
+  let release
+  let started
+  const pending = new Promise(resolve => { started = resolve })
+  const held = new Promise(resolve => { release = resolve })
+  await page.route('**/web-admin**', async route => {
+    const metadata = { configured: true, revision: 1, role: 'administrator', workspace: 'SYSTEM' }
+    if (route.request().method() === 'GET') return route.fulfill({ json: metadata })
+    started()
+    await held
+    return route.fulfill({ json: { ...metadata, password: 'NeverDisplayThis9!' } })
+  })
+  await page.getByRole('button', { name: 'Web password settings', exact: true }).click()
+  await expect(page.locator('#web-admin-access')).toBeVisible()
+  page.on('dialog', dialog => dialog.accept())
+  await page.locator('#reveal-web-admin').click()
+  await pending
+  state.managedStatus = 503
+  await page.locator('#refresh').click()
+  await expect(page.locator('#agent-summary')).toContainText('Stale inventory')
+  release()
+  await expect(page.locator('#web-admin-access')).toBeHidden()
+  await expect(page.locator('#web-admin-secret')).toHaveText('')
+  await expect(page.locator('body')).not.toContainText('NeverDisplayThis9!')
+})
+
 test('managed connection addresses are real, copyable, online-first and explicitly not transferable authorization', { timeout: 60000 }, async t => {
   const online = agent('1', { label: '<img src=x onerror="window.injected=true">' })
   const offline = agent('2', { label: 'A offline', online: false, url: undefined })
@@ -98,8 +173,8 @@ test('managed connection addresses are real, copyable, online-first and explicit
   await expect(page.locator('#agent-summary')).toContainText('2 approved devices online / 3 registered')
   await expect(page.locator('#connection-auth-help')).toContainText('different browser or incognito')
   await expect(page.locator('#connection-auth-help')).toContainText('existing app-profile password from the profile owner')
-  await expect(page.locator('#connection-auth-help')).toContainText('profile without an app password')
-  await expect(page.locator('#connection-auth-help')).toContainText('cannot retrieve, set or reset')
+  await expect(page.locator('#connection-auth-help')).toContainText('unique password owned by a protected local file')
+  await expect(page.locator('#connection-auth-help')).toContainText('cannot retrieve, set or reset Windows or native app-profile passwords')
   await live.getByRole('button', { name: 'Copy device URL' }).click()
   assert.deepEqual(await page.evaluate(() => window.copiedFixture), [online.url + '/'])
   await expect(page.locator('#message')).toContainText('without credentials')
