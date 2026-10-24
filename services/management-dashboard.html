@@ -374,6 +374,8 @@ async function openWebAdmin (agent) {
     webAdminMetadata(result)
     element('web-admin-title').textContent = 'Web administrator: ' + live.label
     element('web-admin-access').hidden = false
+    element('web-admin-access').scrollIntoView({ block: 'start' })
+    element('web-admin-password').focus({ preventScroll: true })
   } catch (error) {
     if (session === generation && operation === webAdminGeneration) message('Unable to load Web password settings: ' + error.message, true)
   }

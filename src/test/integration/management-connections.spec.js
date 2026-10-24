@@ -86,6 +86,19 @@ async function fixture (t, agents) {
   return { page, context, base, state, adminToken }
 }
 
+test('Web password settings opens and focuses the form inside the viewport on a long device list', { timeout: 60000 }, async t => {
+  const agents = Array.from({ length: 24 }, (_, index) => agent((index + 1).toString(16)))
+  const { page } = await fixture(t, agents)
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await page.route('**/web-admin', route => route.fulfill({
+    json: { configured: false, revision: 0, role: 'administrator', workspace: 'SYSTEM' }
+  }))
+  await page.getByRole('button', { name: 'Web password settings', exact: true }).first().click()
+  await expect(page.locator('#web-admin-password')).toBeInViewport({ ratio: 1 })
+  await expect(page.locator('#web-admin-password')).toBeFocused()
+  await expect(page.locator('#save-web-admin')).toBeInViewport({ ratio: 1 })
+})
+
 test('Web administrator settings save and explicitly reveal only in memory with timed secret cleanup', { timeout: 60000 }, async t => {
   const original = agent('1')
   const f = await fixture(t, [original])
