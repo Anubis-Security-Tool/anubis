@@ -20,6 +20,10 @@ on:
       - 'src/build/bin/assemble-web-client.js'
       - 'src/build/web-app/package.json'
       - '.github/workflows/web-client-publish.yml'
+      - 'src/build/vite/electerm-entry.js'
+      - 'src/build/vite/conf.js'
+      - 'src/build/vite/dev-server.js'
+      - 'src/test/unit-ci/native-renderer-bootstrap.spec.js'
       - 'src/app/common/*.mjs'
       - 'src/client/common/*vv*.js'
       - 'src/test/unit-ci/managed-browser*.spec.js'
@@ -37,6 +41,10 @@ on:
       - 'src/build/bin/assemble-web-client.js'
       - 'src/build/web-app/package.json'
       - '.github/workflows/web-client-publish.yml'
+      - 'src/build/vite/electerm-entry.js'
+      - 'src/build/vite/conf.js'
+      - 'src/build/vite/dev-server.js'
+      - 'src/test/unit-ci/native-renderer-bootstrap.spec.js'
       - 'src/app/common/*.mjs'
       - 'src/client/common/*vv*.js'
       - 'src/test/unit-ci/managed-browser*.spec.js'
@@ -111,6 +119,7 @@ jobs:
           src/test/integration/session-loopback-acceptance.spec.js
           src/test/unit-ci/session-ftp-renderer.spec.js
           src/test/unit-ci/web-client-package.spec.js
+          src/test/unit-ci/native-renderer-bootstrap.spec.js
           src/test/unit-ci/managed-browser.spec.js
           src/test/unit-ci/managed-browser-rpc.spec.js
           src/test/unit-ci/managed-browser-packaging.spec.js

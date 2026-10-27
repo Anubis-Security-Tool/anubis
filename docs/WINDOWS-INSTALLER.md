@@ -525,6 +525,12 @@ immutable renderer publication; changing client source requires a new package
 version, never replacing an existing registry version. Source provenance is
 retained in the CI artifacts.
 
+Desktop production and development builds use a build-owned bootstrap that
+awaits the unchanged AttachAddon loader before dynamically importing the shared
+client entry. This preserves the published renderer sources while preventing
+cold-start terminal output from racing the addon's import. Addon import failure
+blocks client startup rather than mounting a partially initialized terminal.
+
 The Windows x64 NSIS path uses a physical private copy of app-builder-lib
 26.15.7 and the reviewed data-only uninstaller reconstruction helper. Generated
 installer/uninstaller executables are not run while packaging. The build checks
