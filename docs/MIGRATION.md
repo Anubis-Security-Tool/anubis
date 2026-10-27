@@ -6,7 +6,7 @@ This procedure separates the application source/install from user data and machi
 
 1. Record the Desktop and Web versions, operating system, installation type (Desktop, standalone Web or managed Web), and which connections you need to recreate.
 2. In Desktop, open **Settings → Sync** and use the application's export action for the data categories you need. The all-data/configuration export contains sensitive settings; store it in an encrypted, access-controlled location. Use the bookmark toolbar's export action if you need a separate bookmark/group file.
-3. If you use Web, make a separate protected backup of its data directory and document its non-secret settings. Web data is not part of the Desktop profile.
+3. If you use Web, stop its service cleanly and make a separate, private backup of the configured `DB_PATH` as described in [Web data backup and restore](#web-data-backup-and-restore).
 4. Back up SSH keys and certificates through your approved secret-management process. Do not put them in the project clone, issue tracker, Wiki, or an unencrypted transfer archive.
 5. Keep the old machine's installation and backup available until the new profile's bookmarks, connections and file workflows have been checked.
 
@@ -24,14 +24,24 @@ Install the Web runtime separately, using the current instructions in the [Web r
 
 Use a fresh clone and run the [source-suite bootstrap](SOURCE-INSTALL.md). It recreates pinned component checkouts, dependencies and build output. Do not transfer `node_modules/`, `work/`, `dist/` or the old `.anubis-suite/components/` as a substitute for a fresh source build.
 
-For a source-suite move, export/import Desktop data through the application rather than copying `.anubis-suite/config/local-sync.json` or `.anubis-suite/components/web/.env`. Those files hold sync and Web service credentials; the new computer provisions its own identities. The Web database/uploads and Node Sync records are separate from Desktop data and are not migrated by a Desktop export. Use the Web component's documented backup/restore procedure if its data must be retained, and never pair old encrypted Sync records with regenerated credentials.
+For a source-suite move, export/import Desktop data through the application rather than copying `.anubis-suite/config/local-sync.json` or `.anubis-suite/components/web/.env`. Those files hold sync and Web service credentials; the new computer provisions its own identities. The Web database/uploads and Node Sync records are separate from Desktop data and are not migrated by a Desktop export.
+
+## Web data backup and restore
+
+Web has no built-in data export/import command. Its file-level migration is separate from the Desktop profile and must be done with the service stopped:
+
+1. On the old host, stop the Web service cleanly. Make a private backup of the entire configured `DB_PATH` directory. The packaged CLI defaults to `ANUBIS_WEB_HOME/data` (`ANUBIS_WEB_HOME` defaults to `~/.anubis-web`); source installs use their configured path. This directory includes the SQLite databases (`sqlite/electerm.db` and `sqlite/electerm_data.db`), uploads, session/instance logs and custom modules. Treat the backup as sensitive.
+2. Do not include the Web `.env` or `managed-installation.json` in the backup. The `.env` contains the login password and JWT signing secret; the managed identity must not be duplicated on another host. No separate database-encryption key or built-in cross-version migration guarantee is documented.
+3. On the new host, prepare the same Web version but leave the service stopped. For the packaged CLI, `anubis-web --init` creates fresh private settings; for a source checkout, use its documented `scripts/install-source.js` preparation.
+4. Restore the backed-up database path into a new, private data directory, excluding `managed-installation.json`, and set `DB_PATH` to its absolute path. Keep the newly generated `.env`: `SERVER_PASS` is the Web login password and `SERVER_SECRET` signs session tokens; neither is a database-encryption key. Read the new password locally. If managed access is enabled, starting Web creates a new installation identity that must be enrolled and approved.
+5. Start Web and verify the restored data before upgrading or retiring the old installation. Existing browser tokens will no longer be valid. This is a file-level restore, not an export/import procedure; keep the original backup until the restore has been verified.
 
 ## Import and verify
 
 1. Import the protected Desktop export through **Settings → Sync**. Import replaces the selected local datasets; read the confirmation and selection carefully. Do not import into the old profile or a profile containing data you have not backed up.
 2. Review bookmarks and connection profiles before connecting. Re-enter passwords, API keys and tokens on the new machine. Re-select SSH key/certificate files from their new paths.
 3. If profiles were encrypted or protected by the old operating system's keychain/DPAPI, do not assume the old encrypted credential blob is portable. Use the original encryption password where supported; otherwise re-enter the secret. Never disable encryption to force a transfer.
-4. For Web, restore only data using the Web component's documented backup/restore procedure and into its separate Web data path. Do not replace its `.env` with the old file: it contains server login and installation secrets. A fresh install should generate fresh credentials.
+4. For Web, follow [Web data backup and restore](#web-data-backup-and-restore) before starting the service on the new host.
 5. For managed access, treat the new computer as a new installation: enroll it and have an administrator verify/approve its new fingerprint. Do not copy the old managed-installation identity or claim that copying a profile transfers approval.
 6. Test one authorized connection, a file transfer, and any sync/managed workflow before retiring the old computer.
 
@@ -53,6 +63,6 @@ Default Desktop data directories (unless the installation has an explicit suppor
 | macOS | `~/Library/Application Support/anubis` |
 | Linux | `~/.config/anubis` |
 
-The published Web CLI keeps its private `.env` and default data under `ANUBIS_WEB_HOME` (default `~/.anubis-web`). In a source-suite run, the Web `.env` remains in the pinned Web checkout at `.anubis-suite/components/web/.env`, while `DB_PATH` places Web database, uploads and logs under `.anubis-suite/data/web/`. Desktop and Node Sync data use sibling directories there; none of these are the default installed Desktop profile.
+The published Web CLI keeps its private `.env` and default data under `ANUBIS_WEB_HOME` (default `~/.anubis-web`); its default `DB_PATH` is the `data` subdirectory. The SQLite database files are `DB_PATH/sqlite/electerm.db` and `DB_PATH/sqlite/electerm_data.db`; uploads, session/instance logs and custom modules also live beneath `DB_PATH`. Managed installation identity defaults to `DB_PATH/managed-installation.json` and must be newly generated, not copied to another host. In a source-suite run, the Web `.env` remains in the pinned Web checkout at `.anubis-suite/components/web/.env`, while `DB_PATH` places Web database, uploads and logs under `.anubis-suite/data/web/`. Desktop and Node Sync data use sibling directories there; none of these are the default installed Desktop profile.
 
 Local paths vary with portable, managed-device and administrator-controlled configurations. Inspect the active configuration on the old machine rather than assuming a default path. Keep backups private and retain the original until restore is verified.

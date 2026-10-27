@@ -4,7 +4,7 @@ Cross-platform desktop terminal, remote-connection and file-transfer workspace, 
 
 [Website](https://anubis.locker) · [Downloads](https://download.anubis.locker) · [Source setup](docs/SOURCE-INSTALL.md) · [Issues](https://github.com/Anubis-Security-Tool/anubis/issues)
 
-> **Published versions:** Desktop `5.7.2`; Web CLI `5.6.12`. The `5.7.5` source is a private integration candidate; `5.7.4` was not released. Neither candidate is an installed, live-accepted or published release. Check the [published releases](https://github.com/Anubis-Security-Tool/anubis/releases) and verify the checksum for the exact download. A source manifest or successful source build does not prove that an installer has been released or accepted.
+> **Published artifacts:** check the [latest Desktop release](https://github.com/Anubis-Security-Tool/anubis/releases/latest) and the [latest Web package metadata](https://npm.anubis.locker/anubis-web/latest) when choosing a version. Verify the checksum published for the exact Desktop download. A source version, source pin or successful build does not prove that an installer or Web package has been published, installed or accepted.
 
 ## What is included
 
@@ -32,10 +32,10 @@ Choose the current OS/architecture package from [Downloads](https://download.anu
 
 ### Standalone Web
 
-The Web CLI has its own version and source repository; it is not installed by the Desktop installer. The currently published package is available from the project registry:
+The Web CLI has its own version and source repository; it is not installed by the Desktop installer. Check the [registry's latest package metadata](https://npm.anubis.locker/anubis-web/latest) before installation. `@latest` follows the published npm dist-tag and is not a reproducible version pin.
 
 ```bash
-npm install --global anubis-web@5.6.12 --legacy-peer-deps --registry=https://npm.anubis.locker/
+npm install --global anubis-web@latest --legacy-peer-deps --registry=https://npm.anubis.locker/
 anubis-web --init
 anubis-web
 ```
@@ -62,12 +62,13 @@ The full procedure is in [source installation](docs/SOURCE-INSTALL.md); read the
 
 ## Move to another computer
 
-Use the application's data export/import flow and re-enter credentials that depend on the old OS account or keychain. Do not copy an encrypted database or a managed-device identity as if it were portable.
+Use the Desktop data export/import flow and re-enter credentials that depend on the old OS account or keychain. Web data has a separate, stopped-service file-backup procedure. Do not assume Desktop encrypted secrets or a managed-device identity are portable.
 
-1. On the old computer, create a protected backup and export application data from **Settings → Sync**. The export can include bookmarks, settings and sensitive configuration; protect the file and do not attach it to an issue.
-2. Install Desktop/Web on the new computer, import into the intended profile and verify the result before changing or retiring the old setup.
-3. Re-enter passwords and tokens, re-check SSH key paths, and enroll/approve the new managed device independently if required.
-4. Keep the old profile and backup until connections and files have been verified on the new computer.
+1. On the old computer, create a protected Desktop backup and export application data from **Settings → Sync**. The export can include bookmarks, settings and sensitive configuration; protect the file and do not attach it to an issue.
+2. Install Desktop on the new computer, import into the intended profile and verify the result before changing or retiring the old setup.
+3. If retaining Web data, follow [Web data backup and restore](docs/MIGRATION.md#web-data-backup-and-restore) while the old service is stopped.
+4. Re-enter passwords and tokens, re-check SSH key paths, and enroll/approve the new managed device independently if required.
+5. Keep the old profile and backup until connections and files have been verified on the new computer.
 
 The full procedure, portability limits and platform data paths are in the [migration guide](docs/MIGRATION.md).
 

@@ -5,7 +5,10 @@ This guide covers a fresh, local development installation of the Desktop applica
 ## Requirements
 
 - Node.js 24 or newer, npm and Git.
-- The native build tools required by Electron, `node-pty` and `serialport` for the chosen operating system. Native dependency installation can take time and may require platform-specific SDKs.
+- Windows source builds need Visual Studio 2022 Build Tools with the C++ desktop workload and Windows SDK, plus Python 3.11 x64 for native Node modules. The active Windows CI uses Windows Server 2022.
+- macOS source builds need Xcode Command Line Tools, Python 3.11 and `setuptools` for native modules. The active CI builds x64 and arm64 on macOS 15.
+- Linux source builds need a C/C++ compiler, `make`, Python 3 and `pkg-config`; on Debian/Ubuntu these are provided by `build-essential`, `python3` and `pkg-config`. The active Linux CI target is Ubuntu 24.04.
+- Windows artifact packaging uses Go for the native Windows host; the tracked workflows pin Go 1.27.3 (the source compatibility minimum is 1.26). It is not required for the ordinary source-suite run.
 - Network access to the pinned Git sources and the Anubis npm registry at `https://npm.anubis.locker/`.
 
 Use a new clone for the suite. The source pins are recorded in [`source-suite-pins.json`](../scripts/source-suite-pins.json); the bootstrap rejects missing or non-immutable pins rather than substituting a branch, a sibling checkout or an unverified registry package.
@@ -75,5 +78,34 @@ The secret is also stored in the clients' local settings, so protect the entire 
 - **Built-in SSH tunnels** are not the separate GPL-3.0 HTTP tunnel server. The historic GPL-3.0 `rdpjs` project is not the active Desktop RDP implementation.
 - **Browser Control** and six other PRO menu entries are placeholders, not remote Chrome automation or installable extensions.
 - An App build or Web build is not an OS installer, release, deployed Web service or proof of a functioning remote target. Packaging and live acceptance are separate steps.
+
+## Build OS packages separately
+
+`node scripts/source-suite.js install` and `run` build and launch source runtimes; they do not produce or install an OS package. Artifact builds use the release-input preparation in [`.github/actions/release-inputs`](../.github/actions/release-inputs/action.yml), then the exact shared CI steps `npm ci --legacy-peer-deps`, `node src/build/bin/release-source-inputs.js build`, and `npm run pb`. Do not replace the pinned `.release-inputs` checkouts with arbitrary branches or add `npx`/electron-builder flags not present in the tracked workflows.
+
+The tracked jobs prepare the checked-out source with:
+
+```bash
+npm config set legacy-peer-deps true
+npm install -g yarn
+npm ci --legacy-peer-deps
+node src/build/bin/release-source-inputs.js build
+npm run pb
+```
+
+The Windows jobs also run `npm install -g node-gyp` and provision Python 3.11 x64 and Go 1.27.3. The macOS jobs install `setuptools` with `pip install setuptools`. These are CI preparation commands, not part of the source-suite `install` command.
+
+The workflows then invoke these platform builders:
+
+| Artifact | Exact builder command and workflow |
+| --- | --- |
+| Windows x64 NSIS installer | `node src/build/bin/build-win-nsis` ([win-nsis](../.github/workflows/win-nsis.yml)) |
+| Windows portable archive | `node src/build/bin/build-win-portable` ([win-portable](../.github/workflows/win-portable.yml)) |
+| Windows tar archive | `node src/build/bin/build-win-tar` ([win-tar](../.github/workflows/win-tar.yml)) |
+| Linux x64 `.deb`, `.tar.gz`, AppImage | `node src/build/bin/build-linux-deb-tar` ([linux-deb-tar](../.github/workflows/linux-deb-tar.yml)) |
+| macOS x64 `.dmg` | `node src/build/bin/build-mac` ([mac](../.github/workflows/mac.yml)) |
+| macOS arm64 `.dmg` | `node src/build/bin/build-mac-arm` ([mac-arm](../.github/workflows/mac-arm.yml)) |
+
+The tracked jobs set their build environment and signing/notarization inputs; do not copy credentials into commands or documentation. The Windows NSIS output is a machine installer; portable/archive outputs do not install the machine service. Packaging creates artifacts only—it does not install them, publish a release or prove live acceptance.
 
 For ordinary development commands and tests, see [Development](wiki/Development.md). For new-PC transfer, see [Migration](MIGRATION.md).
