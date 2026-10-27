@@ -103,7 +103,7 @@
     "yarn": "1.22.22"
   },
   "dependencies": {
-    "@ai-security-tool/anubis-browser-assets": "5.7.5",
+    "@ai-security-tool/anubis-browser-assets": "5.7.6",
     "@ai-security-tool/ftp-srv": "^1.0.6",
     "@ai-security-tool/locales": "2.3.34",
     "@ai-security-tool/managed-access": "1.0.4",
