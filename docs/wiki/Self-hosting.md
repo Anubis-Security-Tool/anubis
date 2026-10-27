@@ -4,10 +4,10 @@
 
 | Компонент | Назначение и источник |
 | --- | --- |
-| Приложение | [anubis](https://github.com/Anubis-Locker/anubis): Desktop, shared renderer и служебные контракты |
-| Web-обёртка | [anubis-web](https://github.com/Anubis-Locker/anubis-web): runnable Web, CLI и собственная конфигурация |
-| Ресурсы | [anubis-resource](https://github.com/Anubis-Locker/anubis-resource): брендовые ресурсы |
-| Managed access | [anubis-managed-access](https://github.com/Anubis-Locker/anubis-managed-access): отдельный компонент управляемого доступа |
+| Приложение | [anubis](https://github.com/Anubis-Security-Tool/anubis): Desktop, shared renderer и служебные контракты |
+| Web-обёртка | [anubis-web](https://github.com/Anubis-Security-Tool/anubis-web): runnable Web, CLI и собственная конфигурация |
+| Ресурсы | [anubis-resource](https://github.com/Anubis-Security-Tool/anubis-resource): брендовые ресурсы |
+| Managed access | [anubis-managed-access](https://github.com/Anubis-Security-Tool/anubis-managed-access): отдельный компонент управляемого доступа |
 | Службы в app source | `services`: management API/dashboard, release API, AI stub, примеры Nginx |
 
 Используйте инструкции и dependency manifests конкретного компонента. Не выдумывайте npm-пакеты или GitHub-ссылки для локальных вспомогательных модулей. Наличие исходной папки не означает опубликованный сервис.

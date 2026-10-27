@@ -2,16 +2,18 @@
 
 Вопросы по использованию, подтверждённые баги и предложения требуют разного контекста. Сначала найдите близкий сценарий в [руководстве](Home.md).
 
+Ниже — маршруты поддержки и редакционные материалы. Не считайте GitHub Discussions включёнными, а подготовленные FAQ — опубликованными темами; перед внешней ссылкой отдельно проверьте доступность страницы и категории.
+
 | Обращение | Маршрут |
 | --- | --- |
-| Вопрос по использованию, идеи и обмен опытом | [Discussions](https://github.com/Anubis-Locker/anubis/discussions) |
-| Воспроизводимая ошибка приложения | [Issues основного приложения](https://github.com/Anubis-Locker/anubis/issues) |
-| Ошибка runnable Web/CLI | [anubis-web](https://github.com/Anubis-Locker/anubis-web) |
-| Ошибка ресурса/иконки | [anubis-resource](https://github.com/Anubis-Locker/anubis-resource) |
-| Вопрос по компоненту managed access | [anubis-managed-access](https://github.com/Anubis-Locker/anubis-managed-access) |
+| Вопрос по использованию, идеи и обмен опытом | [Issues основного приложения](https://github.com/Anubis-Security-Tool/anubis/issues) с контекстом версии и режима |
+| Воспроизводимая ошибка приложения | [Issues основного приложения](https://github.com/Anubis-Security-Tool/anubis/issues) |
+| Ошибка runnable Web/CLI | [anubis-web](https://github.com/Anubis-Security-Tool/anubis-web) |
+| Ошибка ресурса/иконки | [anubis-resource](https://github.com/Anubis-Security-Tool/anubis-resource) |
+| Вопрос по компоненту managed access | [anubis-managed-access](https://github.com/Anubis-Security-Tool/anubis-managed-access) |
 | Приватные вопросы безопасности | Порядок в [Security and privacy](Security-and-privacy.md) |
 
-Discussions открыты с шестью категориями и четырьмя стартовыми материалами от сопровождающих. Категории, опубликованные ссылки и дополнительные сценарии перечислены в [редакционном пакете](../community/README.md). Форум существует отдельно: меню PRO **Community** остаётся заглушкой, а не работающей интеграцией Discussions.
+В [пакете сообщества](../community/README.md) описаны предложения по категориям и оригинальные FAQ-сценарии команды. Они остаются редакционными заготовками до отдельной публикации. Меню PRO **Community** — заглушка, а не работающая интеграция Discussions.
 
 ## Как написать полезное обращение
 

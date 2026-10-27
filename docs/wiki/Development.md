@@ -1,6 +1,6 @@
 # Разработка и сборка
 
-Используйте полный checkout [anubis](https://github.com/Anubis-Locker/anubis), Node.js 24.x и зависимости из lockfile. Этот раздел описывает команды, не запускает их и не публикует release.
+Используйте полный checkout [anubis](https://github.com/Anubis-Security-Tool/anubis), Node.js 24.x и зависимости из lockfile. Этот раздел описывает команды, не запускает их и не публикует release.
 
 ```powershell
 npm install --legacy-peer-deps

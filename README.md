@@ -2,9 +2,9 @@
 
 Cross-platform desktop terminal, remote-connection and file-transfer workspace, with separate Web and managed-access distributions.
 
-[Website](https://anubis.locker) · [Downloads](https://download.anubis.locker) · [Canonical Wiki](https://github.com/Anubis-Security-Tool/anubis/wiki) · [Discussions](https://github.com/Anubis-Security-Tool/anubis/discussions)
+[Website](https://anubis.locker) · [Downloads](https://download.anubis.locker) · [Source setup](docs/SOURCE-INSTALL.md) · [Issues](https://github.com/Anubis-Security-Tool/anubis/issues)
 
-> **Release versions and source versions are not the same thing.** Check the [published releases](https://github.com/Anubis-Security-Tool/anubis/releases) and verify the checksum for the exact download. A version in a source manifest or a successful source build does not prove that an installer has been released or accepted.
+> **Published versions:** Desktop `5.7.2`; Web CLI `5.6.12`. The `5.7.5` source is a private integration candidate; `5.7.4` was not released. Neither candidate is an installed, live-accepted or published release. Check the [published releases](https://github.com/Anubis-Security-Tool/anubis/releases) and verify the checksum for the exact download. A source manifest or successful source build does not prove that an installer has been released or accepted.
 
 ## What is included
 
@@ -32,15 +32,15 @@ Choose the current OS/architecture package from [Downloads](https://download.anu
 
 ### Standalone Web
 
-The Web CLI has its own version and source repository; it is not installed by the Desktop installer. Use the current instructions in the [Web repository](https://github.com/Anubis-Security-Tool/anubis-web). The published package is available from the project registry:
+The Web CLI has its own version and source repository; it is not installed by the Desktop installer. The currently published package is available from the project registry:
 
-```powershell
-npm install --global anubis-web --legacy-peer-deps --registry=https://npm.anubis.locker/
+```bash
+npm install --global anubis-web@5.6.12 --legacy-peer-deps --registry=https://npm.anubis.locker/
 anubis-web --init
 anubis-web
 ```
 
-By default, the Web CLI provisions its private configuration and uses managed enrollment. `--standalone` opts a new configuration out of managed enrollment. Existing `.env` and user data are preserved; initialization does not start the server. Device approval and Web login are separate authentication steps. Do not expose the Web listener to an untrusted network without TLS, authentication and appropriate access controls.
+By default, the Web CLI provisions its private configuration and uses managed enrollment. `anubis-web --standalone` opts a new configuration out of managed enrollment. Existing `.env` and user data are preserved; `--init` initializes configuration but does not start the server. Device approval and Web login are separate authentication steps. Do not expose the Web listener to an untrusted network without TLS, authentication and appropriate access controls. See the [Web repository](https://github.com/Anubis-Security-Tool/anubis-web) for its source and current setup notes.
 
 The one-line Web installer installs the **Web distribution only**. It does not install Desktop or deploy the sync, management, Cloudflare or tunnel services.
 
@@ -48,17 +48,19 @@ The one-line Web installer installs the **Web distribution only**. It does not i
 
 Use a fresh checkout, Node.js 24 or newer, Git, npm and the native build prerequisites for Electron, `node-pty` and `serialport` on your OS. The repository's source-suite entry point fetches the pinned companion sources into a dedicated ignored workspace, installs/builds the Desktop and standalone Web sources, and prepares the loopback Node sync service with local-only credentials.
 
+> **Preparation status:** the immutable source-pin manifest is pending final Web/site component confirmation. Do not run this bootstrap until `scripts/source-suite-pins.json` is present in the checkout; the script intentionally fails rather than guessing a branch or package version.
+
 ```bash
 git clone https://github.com/Anubis-Security-Tool/anubis.git
 cd anubis
 node scripts/source-suite.js install
 ```
 
-The default source suite includes Desktop, standalone Web, the source-aligned renderer/resources/access package dependencies and the loopback Node sync server. Optional Cloudflare sync, HTTP tunnel, legacy RDP reference, Go release API and website components must be explicitly selected; Cloudflare deployment always remains a separate operator action.
+The default source suite includes Desktop, standalone Web, source-aligned renderer/resources/managed-access SDK dependencies and the loopback Node sync server. Optional Cloudflare sync, HTTP tunnel and legacy RDP reference components must be explicitly selected; Cloudflare deployment always remains a separate operator action. The unlicensed legacy Go release API is not included.
 
 The command builds application sources; it **does not install an OS package**, publish a release, enroll a device or deploy a public service. Follow [source installation](docs/SOURCE-INSTALL.md) for the exact folder map, local sync setup and platform packaging boundaries. Do not mix artifacts from unrelated source commits.
 
-For iterative UI development rather than the pinned full source suite, use the [development guide](docs/wiki/Development.md).
+The full procedure is in [source installation](docs/SOURCE-INSTALL.md); read the [migration guide](docs/MIGRATION.md) before moving an existing profile.
 
 ## Move to another computer
 
@@ -73,13 +75,13 @@ The full procedure, portability limits and platform data paths are in the [migra
 
 ## Project links
 
-- [Canonical product Wiki](https://github.com/Anubis-Security-Tool/anubis/wiki)
+- [Source installation](docs/SOURCE-INSTALL.md)
+- [Migration guide](docs/MIGRATION.md)
 - [Main application](https://github.com/Anubis-Security-Tool/anubis)
 - [Web distribution](https://github.com/Anubis-Security-Tool/anubis-web)
 - [Brand resources](https://github.com/Anubis-Security-Tool/anubis-resource)
 - [Managed access](https://github.com/Anubis-Security-Tool/anubis-managed-access)
 - [Issues](https://github.com/Anubis-Security-Tool/anubis/issues)
-- [Community and contribution guidance](docs/community/README.md)
 
 ## License and attribution
 
