@@ -1,6 +1,11 @@
 name: protocol-tests
 
 on:
+  workflow_call:
+    inputs:
+      source_suite_smoke:
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       source_suite_smoke:
@@ -27,6 +32,8 @@ on:
       - 'src/test/unit-ci/local-terminal-startup.spec.js'
       - 'src/test/unit-ci/fs-shell-lifecycle.spec.js'
       - 'src/app/lib/fs.js'
+      - 'src/build/bin/prepare.js'
+      - 'src/test/unit-ci/packaging-yarn.spec.js'
       - 'src/app/common/*.mjs'
       - 'src/client/common/*vv*.js'
       - 'src/test/unit-ci/managed-browser*.spec.js'
@@ -51,6 +58,8 @@ on:
       - 'src/test/unit-ci/local-terminal-startup.spec.js'
       - 'src/test/unit-ci/fs-shell-lifecycle.spec.js'
       - 'src/app/lib/fs.js'
+      - 'src/build/bin/prepare.js'
+      - 'src/test/unit-ci/packaging-yarn.spec.js'
       - 'src/app/common/*.mjs'
       - 'src/client/common/*vv*.js'
       - 'src/test/unit-ci/managed-browser*.spec.js'
@@ -62,7 +71,7 @@ permissions:
 
 jobs:
   source-suite-smoke:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.source_suite_smoke }}
+    if: ${{ inputs.source_suite_smoke }}
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     env:
@@ -87,7 +96,6 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends build-essential libudev-dev
-          npm install --global yarn@1.22.22 --registry=https://npm.anubis.locker/ --no-audit --no-fund
       - name: Install and build the actual fresh source suite
         run: |
           test ! -e node_modules
@@ -128,6 +136,7 @@ jobs:
           src/test/unit-ci/native-renderer-bootstrap.spec.js
           src/test/unit-ci/local-terminal-startup.spec.js
           src/test/unit-ci/fs-shell-lifecycle.spec.js
+          src/test/unit-ci/packaging-yarn.spec.js
           src/test/unit-ci/managed-browser.spec.js
           src/test/unit-ci/managed-browser-rpc.spec.js
           src/test/unit-ci/managed-browser-packaging.spec.js

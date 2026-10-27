@@ -111,6 +111,12 @@ async function main () {
   const config = JSON.parse(fs.readFileSync(configFile))
   suite.validateLocalSyncConfig(config)
   const version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'))).version
+  const yarnCli = require.resolve('yarn/bin/yarn.js')
+  assert(fs.realpathSync(yarnCli).startsWith(fs.realpathSync(path.join(root, 'node_modules', 'yarn')) + path.sep), 'Yarn must resolve inside the fresh checkout')
+  const localYarnVersion = execFileSync(process.execPath, [yarnCli, '--version'], {
+    cwd: root, encoding: 'utf8', timeout: 5000
+  }).trim()
+  assert.equal(localYarnVersion, '1.22.22')
   const desktopFiles = ['app.js', ...[
     `js/basic-${version}.js`, `js/electerm-${version}.js`,
     `js/worker-${version}.js`, `css/style-${version}.css`
@@ -216,6 +222,7 @@ async function main () {
     sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
     version,
     actualSourceSuiteInstall: true,
+    localYarnVersion,
     desktopBuild: desktop,
     desktopGuiExecuted: false,
     webHtmlReady: true,

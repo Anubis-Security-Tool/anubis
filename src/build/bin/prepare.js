@@ -5,6 +5,7 @@
 const pack = require('../../../package.json')
 const os = require('os')
 const { resolve } = require('path')
+const { execFileSync } = require('child_process')
 const { version } = pack
 const { mkdir, rm, exec, echo, cp } = require('shelljs')
 const dir = 'dist/v' + version
@@ -118,7 +119,17 @@ rm('-rf', 'work/app/node_modules/node-pty/lib/testUtils.test.js.map')
 
 // yarn auto clean
 cp('-r', 'src/build/bin/.yarnclean', 'work/app/')
-runChecked('yarn generate-lock-entry > yarn.lock && yarn autoclean --force')
+const yarn = require.resolve('yarn/bin/yarn.js')
+const yarnCwd = resolve(cwd, 'work/app')
+const yarnLock = execFileSync(process.execPath, [yarn, 'generate-lock-entry'], {
+  cwd: yarnCwd,
+  stdio: ['ignore', 'pipe', 'inherit']
+})
+require('fs').writeFileSync(resolve(yarnCwd, 'yarn.lock'), yarnLock)
+execFileSync(process.execPath, [yarn, 'autoclean', '--force'], {
+  cwd: yarnCwd,
+  stdio: 'inherit'
+})
 rm('-rf', 'work/app/.yarnclean')
 rm('-rf', 'work/app/package-lock.json')
 rm('-rf', 'work/app/.npmrc')

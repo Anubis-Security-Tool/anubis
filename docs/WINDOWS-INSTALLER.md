@@ -528,6 +528,12 @@ retained in the CI artifacts.
 Package preparation invokes the exact development dependency Yarn 1.22.22
 through its local Node CLI; a globally installed Yarn is not required.
 
+Release publication also requires the reusable protocol workflow's fresh
+Ubuntu source-suite install and isolated Web/Sync smoke. It runs in parallel
+with native builds without inherited publisher secrets. The smoke builds
+Desktop but does not execute its GUI, enroll an agent, or test production
+network targets; all native builds and this gate must pass before publication.
+
 Desktop production and development builds use a build-owned bootstrap that
 awaits the unchanged AttachAddon loader before dynamically importing the shared
 client entry. This preserves the published renderer sources while preventing
