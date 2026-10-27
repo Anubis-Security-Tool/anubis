@@ -223,7 +223,16 @@ async function main () {
     blockmapChunks,
     installerPe,
     uninstallerPe,
+    uninstallerSha256: S.fileHash(path.join(evidence, 'uninstaller.exe')),
     appPe,
+    runtimeFiles: runtimeRows.map(row => ({
+      relative: path.relative(runtime, row.path).split(path.sep).join('/'),
+      bytes: row.bytes,
+      sha256: row.sha256
+    })),
+    asarHeaderSha256: crypto.createHash('sha256')
+      .update(require('@electron/asar').getRawHeader(path.join(runtime, 'resources/app.asar')).headerString)
+      .digest('hex'),
     embeddedRuntimeFilesStreamVerified: runtimeRows.length,
     archive,
     generatedExecutableExecution: false,
