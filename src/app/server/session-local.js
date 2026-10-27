@@ -63,6 +63,9 @@ class TerminalLocal extends TerminalBase {
       // The OpenConsole conpty.dll does not have this problem.
       useConptyDll: true
     })
+    // The session API returns before its WebSocket data consumer connects.
+    this.term.pause()
+    this._startupPaused = true
     this.term.termType = termType
     globalState.setSession(this.pid, this)
     return Promise.resolve(this)
@@ -74,6 +77,10 @@ class TerminalLocal extends TerminalBase {
 
   on (event, cb) {
     this.term.on(event, cb)
+    if (event === 'data' && this._startupPaused) {
+      this._startupPaused = false
+      this.term.resume()
+    }
   }
 
   off (event, cb) {
