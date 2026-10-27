@@ -35,6 +35,7 @@ jobs:
         NPM_REGISTRY_URL: ${{ secrets.NPM_REGISTRY_URL }}
         NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         CLIENT_PKG_NAME: ${{ vars.CLIENT_PKG_NAME || '@ai-security-tool/electerm-react' }}
+        CLIENT_SOURCE_COMMIT: ${{ github.sha }}
       run: |
         node --test src/test/unit-ci/web-client-package.spec.js src/test/unit-ci/web-client-consumer.spec.js
         # Preserve the Windows publisher's archive line endings on every runner.

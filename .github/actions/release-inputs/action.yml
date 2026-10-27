@@ -1,0 +1,28 @@
+name: Pinned release source inputs
+description: Check out reviewed resource, Web wrapper and SDK source without registry renderer substitution
+runs:
+  using: composite
+  steps:
+  - id: pins
+    shell: bash
+    run: node src/build/bin/release-source-inputs.js pins
+  - uses: actions/checkout@v4
+    with:
+      repository: ${{ steps.pins.outputs.resource_repository }}
+      ref: ${{ steps.pins.outputs.resource_commit }}
+      path: .release-inputs/resource
+      persist-credentials: false
+  - uses: actions/checkout@v4
+    with:
+      repository: ${{ steps.pins.outputs.web_repository }}
+      ref: ${{ steps.pins.outputs.web_commit }}
+      path: .release-inputs/web
+      persist-credentials: false
+  - uses: actions/checkout@v4
+    with:
+      repository: ${{ steps.pins.outputs.sdk_repository }}
+      ref: ${{ steps.pins.outputs.sdk_commit }}
+      path: .release-inputs/sdk
+      persist-credentials: false
+  - shell: bash
+    run: node src/build/bin/release-source-inputs.js verify

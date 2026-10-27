@@ -63,7 +63,10 @@ runChecked('npm i --omit=dev --legacy-peer-deps')
 // yarn autoclean removes dependency folders named assets/images. Stage the
 // complete browser tree outside node_modules before that cleanup runs.
 require('./browser-assets').stageBrowserAssets({
-  destination: resolve(cwd, 'work/app/browser-assets')
+  destination: resolve(cwd, 'work/app/browser-assets'),
+  ...(process.env.ANUBIS_BROWSER_ASSETS_DIR
+    ? { source: resolve(process.env.ANUBIS_BROWSER_ASSETS_DIR), version }
+    : {})
 })
 rm('-rf', 'work/app/node_modules/.bin')
 // Remove axios browser/ESM builds and unnecessary files (keep only lib/ and node CJS)
@@ -121,6 +124,14 @@ rm('-rf', 'work/app/package-lock.json')
 rm('-rf', 'work/app/.npmrc')
 rm('-rf', 'work/app/yarn.lock')
 require('./clean-empty-folders').main()
+
+if (process.env.ANUBIS_SDK_SOURCE_DIR) {
+  require('./release-source-inputs').verify()
+  require('./release-source-inputs').stageSdk(
+    resolve(cwd, 'work/app/node_modules/@ai-security-tool/managed-access'),
+    resolve(process.env.ANUBIS_SDK_SOURCE_DIR)
+  )
+}
 
 const endTime = +new Date()
 echo(`done pack prepare in ${(endTime - timeStart) / 1000} s`)

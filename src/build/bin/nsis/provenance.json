@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "description": "Source-only, native-equivalent NSIS uninstaller reconstruction. No generated writer, uninstaller or installer is executed during packaging.",
+  "compiler": {
+    "version": "NSIS 3.0.4.1",
+    "sha256": "e277b7378931b74392015f5ad6b1d744dcd8a347baa4480350a75ebeab8d8e3d",
+    "abi": "x86 PE32, nonsolid raw deflate, compiler-supplied CRC, WriteUninstaller opcode 62"
+  },
+  "frozenParserSha256": "fad6a7be3de283e58e877cd3f31fbcf0f14fb9e25efb022af25da4d4ae670914",
+  "frozenPeInspectorSha256": "c3863d67691f815eadf4b26269cad87a328b6da5d99901aad1a03c298b37889e",
+  "originalAppBuilderNsisTargetSha256": "0673ad598188c5396ab29f70b104f5057b925ec494b2969018682ce664f1b7a7",
+  "validation": {
+    "syntheticMemoryOnlyRegressions": 42,
+    "independentRealCompilerOnlyFixtures": 2,
+    "fixtureNativeCrc32": ["2e7e061b", "ece248c6"],
+    "lastSealedStandardAssemblyReceiptSha256": "d400488b5571622ba915b4951f3d5b5d5b5cb0e8715efc5fef58ecdc73248457",
+    "historicalBinaryInputsRequired": false
+  },
+  "policy": {
+    "nativeWindowsX64Only": true,
+    "privatePhysicalBuilderCopyOnly": true,
+    "sharedDependencyMutation": false,
+    "wineOrVmFallback": false,
+    "administratorManifestRequired": true,
+    "unsignedOnlyUntilSignedOverlayVerificationIsReviewed": true,
+    "minimumFreeBytes": 536870912
+  }
+}

@@ -133,3 +133,6 @@ ftp-root
 .cursor
 .lintcache
 .npmcache
+/.release-inputs/
+/.release-build/
+/.release-tools/

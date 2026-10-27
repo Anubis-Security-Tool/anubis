@@ -30,8 +30,9 @@ jobs:
     - run: npm config set legacy-peer-deps true
     - run: npm install -g node-gyp
     - run: npm install -g yarn
+    - uses: ./.github/actions/release-inputs
     - run: npm ci --legacy-peer-deps
-    - run: npm run b
+    - run: node src/build/bin/release-source-inputs.js build
     - run: npm run pb
     - name: Verify machine installer contracts (no installation)
       run: node --test src/test/unit-ci/windows-machine-packaging.spec.js src/test/unit-ci/windows-machine-edition.spec.js src/test/unit-ci/windows-installer.spec.js
@@ -58,5 +59,14 @@ jobs:
     - uses: actions/upload-artifact@v4
       with:
         name: win-nsis
-        path: dist/*-installer.exe
+        path: |
+          dist/*-installer.exe
+          dist/*-installer.exe.blockmap
+        if-no-files-found: error
+    - uses: actions/upload-artifact@v4
+      with:
+        name: win-nsis-provenance
+        path: |
+          .release-build/source-provenance.json
+          .release-build/nsis-evidence/*.json
         if-no-files-found: error

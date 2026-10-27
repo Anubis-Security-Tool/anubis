@@ -13,7 +13,7 @@
 
 const domain = 'anubis.locker'
 const org = 'ai-security-tool' // internal npm scope / publisher id, unrelated to the GitHub account below
-const githubOwner = 'Anubis-Locker' // real GitHub account that hosts the public repos
+const githubOwner = 'Anubis-Security-Tool' // canonical GitHub account for the public repositories
 const id = 'anubis'
 const name = 'Anubis-Security-Tool'
 
