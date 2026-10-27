@@ -10,6 +10,7 @@ const { patchTarget, HELPER_SHA256 } = require('../../build/bin/nsis/release-sup
 const { verifyBlockmap } = require('../../build/bin/nsis/build-release')
 const { assembleWebClient } = require('../../build/bin/assemble-web-client')
 const { pathToFileURL } = require('node:url')
+const { spawnSync } = require('node:child_process')
 const root = path.resolve(__dirname, '../../..')
 const digest = value => crypto.createHash('sha256').update(value).digest('hex')
 
@@ -90,6 +91,40 @@ test('private NSIS patch removes every generated writer execution fallback and b
   assert(!patched.includes('UninstallerReader.exec(installerPath'))
   assert.throws(() => patchTarget(code + '\n', 'reviewed-bridge.js'), /Unreviewed/)
   assert.equal(digest(fs.readFileSync(path.join(root, 'src/build/bin/nsis/data-only-uninstaller.cjs'))), HELPER_SHA256)
+})
+
+test('NSIS CLI failures remain nonzero despite the actual builder cleanup hook', () => {
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'anubis-nsis-exit-'))
+  try {
+    const preload = path.join(temporary, 'preload.cjs')
+    fs.writeFileSync(preload, `
+      const Module = require('node:module')
+      require(${JSON.stringify(require.resolve('async-exit-hook'))})(callback => { if (callback) setImmediate(callback) })
+      const original = Module._load
+      Module._load = function (request, parent, ...args) {
+        if (parent && parent.filename === process.argv[1]) {
+          if (request === './build-common') return { writeSrc () {} }
+          if (request === './nsis/build-release') return {
+            main: async () => { if (process.env.ANUBIS_TEST_NSIS_FAIL === '1') throw new Error('NSIS failure fixture') }
+          }
+          if (request === '../release-source-inputs') return { verify () { throw new Error('NSIS failure fixture') } }
+        }
+        return original.call(this, request, parent, ...args)
+      }
+    `)
+    for (const [file, failure] of [['build-win-nsis.js', false], ['build-win-nsis.js', true], ['nsis/build-release.js', true]]) {
+      const result = spawnSync(process.execPath, ['--require', preload, path.join(root, 'src/build/bin', file)], {
+        env: { ...process.env, CSC_LINK: '', ANUBIS_TEST_NSIS_FAIL: failure ? '1' : '0' },
+        encoding: 'utf8',
+        timeout: 10000
+      })
+      assert.ifError(result.error)
+      assert.equal(result.signal, null)
+      assert.equal(result.status, failure ? 1 : 0, `${file}: ${result.stderr}`)
+      if (failure) assert.match(result.stderr, /NSIS failure fixture|Native Windows x64 release runner required/)
+      else assert.equal(result.stderr, '')
+    }
+  } finally { fs.rmSync(temporary, { recursive: true, force: true }) }
 })
 
 test('blockmap verification requires every exact byte, checksum and positive chunk length', () => {

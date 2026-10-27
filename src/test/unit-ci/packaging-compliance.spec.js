@@ -4,6 +4,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const os = require('node:os')
 const { createHash } = require('node:crypto')
+const { finished } = require('node:stream/promises')
 const asar = require('@electron/asar')
 const compliance = require('../../build/bin/third-party-compliance')
 const notices = require('../../build/bin/third-party-notices')
@@ -80,7 +81,7 @@ test('all final platform ASAR gates require byte-identical capsule manifests and
       : path.join(out, 'resources')
     fs.mkdirSync(resources, { recursive: true })
     const archive = path.join(resources, 'app.asar')
-    await asar.createPackage(appDir, archive)
+    await finished(await asar.createPackage(appDir, archive))
     compliance.verifyPackagedCompliance(archive, appDir)
     const context = {
       electronPlatformName: platform,
@@ -91,11 +92,11 @@ test('all final platform ASAR gates require byte-identical capsule manifests and
     const source = path.join(appDir, 'third-party-compliance', 'sources', 'preferred-source.tar.gz')
     const original = files['sources/preferred-source.tar.gz']
     fs.writeFileSync(source, Buffer.alloc(original.length))
-    await asar.createPackage(appDir, archive)
+    await finished(await asar.createPackage(appDir, archive))
     fs.writeFileSync(source, original)
     await assert.rejects(afterPack(context), /Compliance hash mismatch/)
     fs.rmSync(source)
-    await asar.createPackage(appDir, archive)
+    await finished(await asar.createPackage(appDir, archive))
     fs.writeFileSync(source, original)
     await assert.rejects(afterPack(context), /not found/)
   }

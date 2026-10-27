@@ -187,7 +187,17 @@ async function main () {
       archive = { bytes: context.archiveBytes, sha256: S.fileHash(archivePath) }
       assert.equal(defines.APP_64_HASH, S.fileHash(archivePath, 'sha512').toUpperCase())
       runtimeRows = S.inventory(runtime)
-      assert(runtimeRows.length >= 100 && runtimeRows.length <= 160)
+      const runtimeInventory = runtimeRows.map(row => ({
+        relative: path.relative(runtime, row.path).split(path.sep).join('/'),
+        bytes: row.bytes,
+        sha256: row.sha256
+      }))
+      fs.writeFileSync(path.join(evidence, 'runtime-inventory.json'), JSON.stringify({
+        stage: 'before-archive-verification',
+        runtimeFiles: runtimeInventory
+      }, null, 2), { flag: 'wx' })
+      console.log(`NSIS runtime inventory: ${runtimeRows.length} files`)
+      assert(runtimeRows.length >= 100 && runtimeRows.length <= 160, `Unexpected Windows runtime file count: ${runtimeRows.length}; see runtime-inventory.json`)
       assert(!runtimeRows.some(row => path.basename(row.path) === 'anubis-machine-install.json'))
       verifySourceAsar(root, runtime)
       await checkMembers(archivePath)
@@ -244,5 +254,5 @@ async function main () {
   console.log(JSON.stringify(receipt, null, 2))
 }
 
-if (require.main === module) main().catch(error => { console.error(error); process.exitCode = 1 })
+if (require.main === module) main().catch(error => { console.error(error); process.exit(1) })
 module.exports = { verifyBlockmap, streamMember, verifyCrc, verifyEmbedded, main }

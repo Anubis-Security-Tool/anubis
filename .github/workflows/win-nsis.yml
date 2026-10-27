@@ -57,6 +57,13 @@ jobs:
       run: npm run test-packaged-windows
 
     - uses: actions/upload-artifact@v4
+      if: ${{ failure() }}
+      with:
+        name: win-nsis-build-diagnostics
+        path: .release-build/nsis-evidence/runtime-inventory.json
+        if-no-files-found: warn
+        retention-days: 7
+    - uses: actions/upload-artifact@v4
       with:
         name: win-nsis
         path: |
