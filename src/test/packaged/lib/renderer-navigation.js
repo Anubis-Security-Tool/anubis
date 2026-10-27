@@ -1,5 +1,10 @@
 const assert = require('node:assert/strict')
 
+async function clickSidebarSection (page, name) {
+  await page.getByRole('navigation', { name: 'Application sections', exact: true })
+    .getByRole('button', { name, exact: true }).click()
+}
+
 async function clickSettingTab (page, key) {
   const tab = page.locator(`.setting-tabs [data-node-key="${key}"] [role="tab"]`)
   await tab.click()
@@ -8,7 +13,7 @@ async function clickSettingTab (page, key) {
 
 async function checkRendererNavigation (page, t) {
   await t.test('the actual About button and every information section render', async () => {
-    await page.locator('.control-icon-wrap[title="About"]').click()
+    await clickSidebarSection(page, 'About')
     const modal = page.locator('.info-modal')
     await modal.waitFor()
     for (const tab of await modal.getByRole('tab').all()) {
@@ -18,7 +23,7 @@ async function checkRendererNavigation (page, t) {
     await modal.locator('.custom-modal-close').click()
     await modal.waitFor({ state: 'hidden' })
   })
-  await page.locator('.control-icon-wrap[title="Setting"]').click()
+  await clickSidebarSection(page, 'Setting')
   await page.locator('.setting-wrap input').first().waitFor()
   const sections = {
     bookmarks: '.setting-tabs-bookmarks .tree-item',
@@ -55,4 +60,4 @@ async function checkRendererNavigation (page, t) {
   await page.locator('.setting-wrap').waitFor({ state: 'hidden' })
 }
 
-module.exports = { checkRendererNavigation, clickSettingTab }
+module.exports = { checkRendererNavigation, clickSettingTab, clickSidebarSection }

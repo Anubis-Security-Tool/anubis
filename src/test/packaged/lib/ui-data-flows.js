@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict')
-const { clickSettingTab } = require('./renderer-navigation')
+const { clickSettingTab, clickSidebarSection } = require('./renderer-navigation')
 
 const names = {
   command: 'Packaged UI quick command',
@@ -10,7 +10,7 @@ const names = {
 }
 
 async function checkUIDataFlows (page, t) {
-  await page.locator('.control-icon-wrap[title="Setting"]').click()
+  await clickSidebarSection(page, 'Setting')
   await t.test('quick commands are created through their actual form', async () => {
     await clickSettingTab(page, 'quickCommands')
     await page.locator('.setting-wrap #name').fill(names.command)

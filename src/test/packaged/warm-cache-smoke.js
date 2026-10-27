@@ -8,6 +8,7 @@ const asar = require('@electron/asar')
 const { _electron: electron } = require('playwright')
 const { snapshotWindowsProtocols } = require('../integration/lib/windows-protocol-fixture')
 const { checkRendererNavigation } = require('./lib/renderer-navigation')
+const { staleEntryFixture } = require('./lib/stale-entry-fixture')
 
 test('same-version reinstall replaces cached entry modules without losing user data', {
   skip: process.platform !== 'win32',
@@ -18,10 +19,8 @@ test('same-version reinstall replaces cached entry modules without losing user d
   const version = JSON.parse(asar.extractFile(archive, 'package.json')).version
   const entryPath = `/js/electerm-${version}.js`
   const entry = asar.extractFile(archive, join('assets', 'js', `electerm-${version}.js`)).toString()
-  const stale = entry
-    .replaceAll(/info-modal-[^"'`/]+\.js/g, `info-modal-${version}-OLD_BUILD.js`)
-    .replaceAll(/tab-quick-commands-[^"'`/]+\.js/g, `tab-quick-commands-${version}-OLD_BUILD.js`)
-  assert.notEqual(stale, entry, 'fixture must change real lazy-module references')
+  const { stale } = staleEntryFixture(entry, entryPath, asar.listPackage(archive))
+  assert.notEqual(stale, entry, 'fixture must change a real reachable-module reference')
   const root = mkdtempSync(join(tmpdir(), 'anubis-warm-cache-'))
   const profile = join(root, 'profile')
   const env = {
