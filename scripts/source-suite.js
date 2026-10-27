@@ -497,8 +497,7 @@ async function installSuite (options, {
     cwd: checkouts.web,
     env: { ...env, NPM_REGISTRY_URL: registry }
   })
-  const webVersion = JSON.parse(fs.readFileSync(webPackageJson, 'utf8')).dependencies['@ai-security-tool/electerm-react']
-  const browserAssetsDir = path.join(checkouts.web, 'dist', `browser-assets-package-${webVersion}`)
+  const browserAssetsDir = path.join(checkouts.web, 'dist', `browser-assets-package-${rendererPkg.version}`)
   if (!fs.existsSync(browserAssetsDir)) {
     throw new Error(`Web build did not produce version-matched browser assets: ${browserAssetsDir}`)
   }

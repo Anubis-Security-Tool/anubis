@@ -27,7 +27,7 @@ function pinsFixture () {
     {
       repository: `https://github.com/Anubis-Security-Tool/${slug}`,
       commit,
-      ...(name === 'web' ? { packageName: 'anubis-web', version: '5.7.5' } : {}),
+      ...(name === 'web' ? { packageName: 'anubis-web', version: '5.7.6' } : {}),
       ...(name === 'resource' ? { packageName: '@ai-security-tool/resource', version: '2.2.3' } : {}),
       ...(name === 'managed-access' ? { packageName: '@ai-security-tool/managed-access', version: '1.0.4' } : {}),
       ...(name === 'sync-server-node' ? { packageName: 'anubis-sync-server-node', version: '1.0.0' } : {})
@@ -185,17 +185,18 @@ describe('source suite bootstrap', () => {
     const calls = { run: [], npm: [], secureFile: [] }
     fs.mkdirSync(sourceRoot)
     writeJson(path.join(sourceRoot, 'package.json'), {
-      version: '5.7.5',
-      dependencies: { '@ai-security-tool/anubis-browser-assets': '5.7.5' },
+      version: '5.7.6',
+      dependencies: { '@ai-security-tool/anubis-browser-assets': '5.7.6' },
       devDependencies: { '@ai-security-tool/resource': '2.2.3' }
     })
 
     const packageData = {
       'anubis-web': {
         name: 'anubis-web',
-        version: '5.7.5',
+        version: '5.7.6',
+        dependencies: { '@ai-security-tool/managed-access': '1.0.4' },
         devDependencies: {
-          '@ai-security-tool/electerm-react': '5.7.5',
+          '@ai-security-tool/electerm-react': '5.7.6',
           '@ai-security-tool/managed-access': '1.0.4',
           '@ai-security-tool/resource': '2.2.3'
         },
@@ -240,10 +241,9 @@ describe('source suite bootstrap', () => {
       if (command === 'git' && args.includes('rev-parse')) return { stdout: `${appCommit}\n` }
       if (command === process.execPath && args[0]?.endsWith('install-source.js')) {
         fs.writeFileSync(path.join(options.cwd, '.env'), 'SERVER_PASS=local-only\n')
-        writeJson(path.join(options.cwd, 'package.json'), {
-          ...packageData['anubis-web'],
-          dependencies: packageData['anubis-web'].devDependencies
-        })
+        const installedPackage = JSON.parse(fs.readFileSync(path.join(options.cwd, 'package.json'), 'utf8'))
+        assert.equal(installedPackage.dependencies['@ai-security-tool/electerm-react'], undefined)
+        assert.equal(installedPackage.devDependencies['@ai-security-tool/electerm-react'], '5.7.6')
         fs.mkdirSync(path.join(options.cwd, 'dist', 'assets', 'views'), { recursive: true })
         fs.writeFileSync(path.join(options.cwd, 'dist', 'assets', 'views', 'asset-manifest.json'), '{}')
       }
@@ -265,10 +265,10 @@ describe('source suite bootstrap', () => {
       }
       if (args[0] === 'run' && args[1] === 'stage-browser-assets') {
         const web = options.cwd
-        const dir = path.join(web, 'dist', 'browser-assets-package-5.7.5')
+        const dir = path.join(web, 'dist', 'browser-assets-package-5.7.6')
         writeJson(path.join(dir, 'package.json'), {
           name: '@ai-security-tool/anubis-browser-assets',
-          version: '5.7.5'
+          version: '5.7.6'
         })
       }
       if (args[0] === 'install') {
@@ -278,7 +278,7 @@ describe('source suite bootstrap', () => {
         })
         writeJson(path.join(sourceRoot, 'node_modules', '@ai-security-tool', 'anubis-browser-assets', 'package.json'), {
           name: '@ai-security-tool/anubis-browser-assets',
-          version: '5.7.5'
+          version: '5.7.6'
         })
       }
       if (args[0] === 'run' && args[1] === 'b') {
@@ -322,13 +322,14 @@ describe('source suite bootstrap', () => {
         pack,
         assemble: ({ target }) => writeJson(path.join(target, 'package.json'), {
           name: '@ai-security-tool/electerm-react',
-          version: '5.7.5'
+          version: '5.7.6'
         }),
         secureDirectory: () => {},
         secureFile: filename => calls.secureFile.push(filename),
         log: { info: () => {} }
       })
       assert.equal(result.appCommit, appCommit)
+      assert.equal(result.browserAssetsPkg.version, '5.7.6')
       assert.deepEqual(result.checkouts && Object.keys(result.checkouts), suite.defaultComponents)
       assert.ok(calls.run.some(call => call.command === process.execPath && call.args[0].endsWith('install-source.js') &&
         call.args.includes('--renderer-package') && call.args.includes('--sdk-package') && call.args.includes('--resource-package')))
