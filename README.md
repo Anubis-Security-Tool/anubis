@@ -46,7 +46,7 @@ The one-line Web installer installs the **Web distribution only**. It does not i
 
 ## Build the Desktop and Web suite from source
 
-Use a fresh checkout, Node.js 24 or newer, Git, npm and the native build prerequisites for Electron, `node-pty` and `serialport` on your OS. The repository's source-suite entry point fetches the pinned companion sources into a dedicated ignored workspace, installs/builds the Desktop and standalone Web sources, and prepares the loopback Node sync service with local-only credentials.
+Use a fresh checkout, Node.js 24 or newer, Git, npm and the native build prerequisites for Electron, `node-pty` and `serialport` on your OS. Once final source pins are included, the source-suite entry point will fetch pinned companion sources into a dedicated ignored workspace, build Desktop and standalone Web, and prepare the loopback Node sync service with local-only credentials.
 
 > **Preparation status:** the immutable source-pin manifest is pending final Web/site component confirmation. Do not run this bootstrap until `scripts/source-suite-pins.json` is present in the checkout; the script intentionally fails rather than guessing a branch or package version.
 
@@ -56,9 +56,9 @@ cd anubis
 node scripts/source-suite.js install
 ```
 
-The default source suite includes Desktop, standalone Web, source-aligned renderer/resources/managed-access SDK dependencies and the loopback Node sync server. Optional Cloudflare sync, HTTP tunnel and legacy RDP reference components must be explicitly selected; Cloudflare deployment always remains a separate operator action. The unlicensed legacy Go release API is not included.
+The intended default source suite includes Desktop, standalone Web, source-aligned renderer/resources/managed-access SDK dependencies and the loopback Node sync server. Optional Cloudflare sync, HTTP tunnel and legacy RDP reference components must be explicitly selected; Cloudflare deployment always remains a separate operator action. The unlicensed legacy Go release API is not included.
 
-The command builds application sources; it **does not install an OS package**, publish a release, enroll a device or deploy a public service. Follow [source installation](docs/SOURCE-INSTALL.md) for the exact folder map, local sync setup and platform packaging boundaries. Do not mix artifacts from unrelated source commits.
+Once the manifest is present, the command builds application sources; it **does not install an OS package**, publish a release, enroll a device or deploy a public service. Follow [source installation](docs/SOURCE-INSTALL.md) for the exact folder map, local sync setup and platform packaging boundaries. Do not mix artifacts from unrelated source commits.
 
 The full procedure is in [source installation](docs/SOURCE-INSTALL.md); read the [migration guide](docs/MIGRATION.md) before moving an existing profile.
 

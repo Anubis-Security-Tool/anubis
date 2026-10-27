@@ -22,7 +22,7 @@ cd anubis
 node scripts/source-suite.js install
 ```
 
-By default the command fetches the pinned Web, resource, managed-access SDK and Node Sync sources, builds a renderer package from this exact Desktop checkout, builds the standalone Web runtime with the matching renderer/SDK/resource packages, prepares the local sync server, then builds Desktop. A dependency, version, checksum, clone or build failure stops the sequence with a non-zero exit; the script does not silently fall back to a manually supplied checkout or an older published renderer.
+When the pin manifest is present, the default command fetches the pinned Web, resource, managed-access SDK and Node Sync sources, builds a renderer package from this exact Desktop checkout, builds the standalone Web runtime with the matching renderer/SDK/resource packages, prepares the local sync server, then builds Desktop. A dependency, version, checksum, clone or build failure stops the sequence with a non-zero exit; the script does not silently fall back to a manually supplied checkout or an older published renderer.
 
 The optional `--workspace <path>` selects the generated workspace (default: `.anubis-suite` under the clone). Use a custom location outside the clone, or add its location to your local ignore rules. Optional source components are selected only with `--with <name>`:
 
