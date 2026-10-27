@@ -4,7 +4,7 @@ Cross-platform desktop terminal, remote-connection and file-transfer workspace, 
 
 [Website](https://anubis.locker) · [Downloads](https://download.anubis.locker) · [Source setup](docs/SOURCE-INSTALL.md) · [Issues](https://github.com/Anubis-Security-Tool/anubis/issues)
 
-> **Published artifacts:** the registry currently publishes `anubis-web@5.7.5`; check the [latest Desktop release](https://github.com/Anubis-Security-Tool/anubis/releases/latest) and [latest Web package metadata](https://npm.anubis.locker/anubis-web/latest) when choosing a version. Verify the checksum published for the exact Desktop download. A source version, source pin or successful build does not prove that an installer or Web package has been published, installed or accepted.
+> **Published artifacts:** check the [latest Desktop release](https://github.com/Anubis-Security-Tool/anubis/releases/latest) and [latest Web package metadata](https://npm.anubis.locker/anubis-web/latest) when choosing a version. Verify the checksum published for the exact Desktop download. A source version, source pin or successful build does not prove that an installer or Web package has been published, installed or accepted.
 
 ## What is included
 
@@ -35,10 +35,10 @@ Choose the current OS/architecture package from [Downloads](https://download.anu
 
 ### Standalone Web
 
-The Web CLI has its own version and source repository; it is not installed by the Desktop installer. Check the [registry's latest package metadata](https://npm.anubis.locker/anubis-web/latest) before installation. `@latest` follows the published npm dist-tag and is not a reproducible version pin.
+The Web CLI has its own version and source repository; it is not installed by the Desktop installer. The command below pins published `anubis-web@5.7.5`; check the [registry's latest package metadata](https://npm.anubis.locker/anubis-web/latest) before changing that pin. The `@latest` dist-tag follows registry state and is not reproducible.
 
 ```bash
-npm install --global anubis-web@latest --legacy-peer-deps --registry=https://npm.anubis.locker/
+npm install --global anubis-web@5.7.5 --legacy-peer-deps --registry=https://npm.anubis.locker/
 anubis-web --init
 anubis-web
 ```
@@ -57,7 +57,7 @@ cd anubis
 node scripts/source-suite.js install
 ```
 
-The intended default source suite includes Desktop, standalone Web, source-aligned renderer/resources/managed-access SDK dependencies and the loopback Node sync server. Optional site publisher, Cloudflare sync, HTTP tunnel and legacy RDP reference components must be explicitly selected; Cloudflare deployment always remains a separate operator action. The unlicensed legacy Go release API is not included.
+`node scripts/source-suite.js install` fetches and builds the default components: Desktop, standalone Web, source-aligned renderer/resources/managed-access SDK dependencies and the loopback Node sync server. Optional site publisher, Cloudflare sync, HTTP tunnel and legacy RDP reference components require `--with <name>`; Cloudflare deployment remains a separate operator action. The unlicensed legacy Go release API is not included.
 
 The command builds application sources; it **does not install an OS package**, publish a release, enroll a device or deploy a public service. Follow [source installation](docs/SOURCE-INSTALL.md) for the exact folder map, local sync setup and platform packaging boundaries. Do not mix artifacts from unrelated source commits.
 
