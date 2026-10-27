@@ -56,21 +56,21 @@ jobs:
     - name: Verify packaged desktop functionality
       run: npm run test-packaged-windows
 
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       if: ${{ failure() }}
       with:
         name: win-nsis-build-diagnostics
         path: .release-build/nsis-evidence/runtime-inventory.json
         if-no-files-found: warn
         retention-days: 7
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       with:
         name: win-nsis
         path: |
           dist/*-installer.exe
           dist/*-installer.exe.blockmap
         if-no-files-found: error
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       with:
         name: win-nsis-provenance
         path: |
