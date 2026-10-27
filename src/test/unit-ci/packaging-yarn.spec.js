@@ -132,6 +132,12 @@ test('release requires fresh source smoke parallel to native builds without inhe
   }
   assert.doesNotMatch(JSON.stringify(protocol.jobs['source-suite-smoke']), /secrets\./)
   assert.doesNotMatch(JSON.stringify(protocol.jobs['source-suite-smoke'].env), /\$\{\{\s*runner\./)
+  assert.equal(protocol.jobs['source-suite-smoke'].env.NPM_REGISTRY_URL, undefined)
+  const diagnostics = protocol.jobs['source-suite-smoke'].steps.find(step => step.with?.name === 'source-suite-build-diagnostics')
+  assert.equal(diagnostics.if, 'failure()')
+  assert.match(diagnostics.with.path, /browser-dependencies\.json/)
+  assert.match(diagnostics.with.path, /package-lock\.json/)
+  assert.doesNotMatch(diagnostics.with.path, /\.npmrc|\/\.env/)
   assert.equal(release.on.workflow_dispatch.inputs.publish.default, false)
   assert.equal(release.on.workflow_dispatch.inputs.publish.type, 'boolean')
   assert.match(release.jobs.release.if, /workflow_dispatch.*inputs\.publish/)

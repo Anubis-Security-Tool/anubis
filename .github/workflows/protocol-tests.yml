@@ -116,6 +116,15 @@ jobs:
             node scripts/source-suite.js install --workspace "$ANUBIS_SOURCE_SUITE_SMOKE_WORKSPACE"
       - name: Verify isolated Web and authenticated non-writing Sync readiness
         run: node src/test/integration/source-suite-smoke.js
+      - name: Retain failed source dependency evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-suite-build-diagnostics
+          path: |
+            ${{ runner.temp }}/anubis-source-suite/components/web/dist/assets/browser-dependencies.json
+            ${{ runner.temp }}/anubis-source-suite/components/web/package-lock.json
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         with:
           name: source-suite-smoke
