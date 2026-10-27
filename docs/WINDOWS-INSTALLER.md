@@ -18,6 +18,12 @@ claim for an upstream package missing its notices. Preparation and every
 platform's final ASAR gate reject missing or changed retained bytes. These files
 are part of the application, not additional release formats.
 
+The Windows native helper also retains the original license/notice files from
+the actual compiling Go toolchain and linked Go modules next to the executable
+in `third-party-go-notices`, with a source/version/byte-count/SHA-256 index.
+Packaging fails if a component's original license is missing. These sidecars are
+covered by the final protected runtime inventory.
+
 The exact pinned `@ai-security-tool/third-party-compliance` data capsule is also
 copied in full to `app.asar/third-party-compliance`, outside cleaned dependencies.
 Its original manifest covers notices, preferred-source archives and source/relink

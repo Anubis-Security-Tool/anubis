@@ -13,30 +13,59 @@ it('builds an amd64 helper from source alongside the runtime, without a machine 
   const appOutDir = fs.mkdtempSync(path.join(os.tmpdir(), 'anubis-machine-build-'))
   try {
     fs.writeFileSync(path.join(appOutDir, 'anubis-machine-install.json'), 'stale')
+    const components = [
+      { source: 'go-toolchain', version: 'go1.26.0', directory: path.join(appOutDir, 'original-go') },
+      { source: 'github.com/Microsoft/go-winio', version: 'v0.6.4', directory: path.join(appOutDir, 'original-winio') },
+      { source: 'golang.org/x/sys', version: 'v0.49.0', directory: path.join(appOutDir, 'original-sys') }
+    ]
+    for (const [index, component] of components.entries()) {
+      fs.mkdirSync(component.directory)
+      fs.writeFileSync(path.join(component.directory, 'LICENSE'), Buffer.from([index, 0x4d, 0x49, 0x54, 0xa9]))
+    }
+    fs.writeFileSync(path.join(components[0].directory, 'PATENTS'), 'Original additional grant fixture\r\n')
     let called = false
-    copyWindowsMachineHost({ appOutDir }, 'x64', (command, args, options) => {
-      called = true
+    const execute = (command, args, options) => {
       assert.equal(command, process.env.ANUBIS_GO || 'go')
-      assert.deepEqual(args.slice(0, 4), ['build', '-trimpath', '-buildvcs=false', '-o'])
       assert.equal(options.env.GOOS, 'windows')
       assert.equal(options.env.GOARCH, 'amd64')
       assert.equal(options.env.CGO_ENABLED, '0')
       assert.equal(options.cwd, path.resolve('native/windows-host'))
+      if (args[0] === 'env') {
+        return JSON.stringify({ GOROOT: components[0].directory, GOVERSION: components[0].version })
+      }
+      if (args[0] === 'list') {
+        assert.equal(args[1], '-deps')
+        return [...components.slice(1), components[1]].map(component => `${component.source}|${component.version}|${component.directory}`).join('\n')
+      }
+      called = true
+      assert.deepEqual(args.slice(0, 4), ['build', '-trimpath', '-buildvcs=false', '-o'])
       const image = Buffer.alloc(128)
       image.write('MZ')
       image.writeUInt32LE(64, 0x3c)
       image.write('PE\0\0', 64)
       image.writeUInt16LE(0x8664, 68)
       fs.writeFileSync(args[4], image)
-    })
+    }
+    copyWindowsMachineHost({ appOutDir }, 'x64', execute)
     assert.ok(called)
     assert.ok(fs.existsSync(path.join(appOutDir, 'anubis-host.exe')))
     assert.ok(!fs.existsSync(path.join(appOutDir, 'anubis-machine-install.json')))
+    const notices = path.join(appOutDir, 'third-party-go-notices')
+    const manifest = JSON.parse(fs.readFileSync(path.join(notices, 'manifest.json')))
+    assert.equal(manifest.files.length, 4)
+    for (const row of manifest.files) {
+      const component = components.find(component => component.source === row.source)
+      assert.equal(row.version, component.version)
+      assert.deepEqual(fs.readFileSync(path.join(notices, row.relative)), fs.readFileSync(path.join(component.directory, row.original)))
+    }
+    fs.rmSync(path.join(components[1].directory, 'LICENSE'))
+    assert.throws(() => copyWindowsMachineHost({ appOutDir }, 'x64', execute), /Missing original Go license: github.com\/Microsoft\/go-winio/)
     assert.throws(() => copyWindowsMachineHost({ appOutDir }, 'x64', () => {
       fs.writeFileSync(path.join(appOutDir, 'anubis-host.exe'), Buffer.alloc(128))
     }), /amd64 PE/)
     copyWindowsMachineHost({ appOutDir }, 'arm64', () => assert.fail('unsupported native build'))
     assert.ok(!fs.existsSync(path.join(appOutDir, 'anubis-host.exe')))
+    assert.ok(!fs.existsSync(notices))
   } finally {
     fs.rmSync(appOutDir, { recursive: true, force: true })
   }

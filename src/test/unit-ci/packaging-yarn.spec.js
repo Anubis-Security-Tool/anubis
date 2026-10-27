@@ -3,9 +3,21 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const vm = require('node:vm')
+const { execFileSync } = require('node:child_process')
 
 const root = path.resolve(__dirname, '../../..')
 const script = path.join(root, 'src', 'build', 'bin', 'prepare.js')
+
+test('real npm resolves the private scope on a fresh machine without developer registry environment', () => {
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) =>
+    key !== 'NPM_REGISTRY_URL' && !/^npm_config_/i.test(key)))
+  const cli = process.env.npm_execpath || fs.realpathSync(path.join(path.dirname(process.execPath),
+    process.platform === 'win32' ? 'node_modules/npm/bin/npm-cli.js' : 'npm'))
+  const output = execFileSync(process.execPath, [
+    cli, 'config', 'get', '@ai-security-tool:registry', '--registry=https://registry.npmjs.org/'
+  ], { cwd: root, env, encoding: 'utf8' })
+  assert.equal(output.trim(), 'https://npm.anubis.locker/')
+})
 
 function prepare (failure) {
   const cwd = path.join(root, 'fixture with spaces')

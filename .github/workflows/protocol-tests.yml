@@ -85,7 +85,6 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     env:
-      NPM_REGISTRY_URL: https://npm.anubis.locker/
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
       ANUBIS_MANAGED_ACCESS: '0'
       ANUBIS_MANAGED_URL: ''
