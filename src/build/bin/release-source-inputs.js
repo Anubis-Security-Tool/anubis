@@ -47,6 +47,18 @@ function run (cwd, script, args = []) {
   execFileSync(process.execPath, [script, ...args], { cwd, env: process.env, stdio: 'inherit' })
 }
 
+function nativeViteConfig (projectRoot) {
+  const destination = path.join(projectRoot, '.release-build/native-vite.config.mjs')
+  assert(fs.statSync(path.join(projectRoot, '.release-build/browser/build/vite/browser-dependencies.js')).isFile())
+  fs.writeFileSync(destination, [
+    "import config from '../src/build/vite/conf.js'",
+    "import { browserDependencies } from './browser/build/vite/browser-dependencies.js'",
+    'export default { ...config, plugins: [...config.plugins, browserDependencies()] }',
+    ''
+  ].join('\n'), { flag: 'wx' })
+  return destination
+}
+
 async function build () {
   const manifest = verify()
   const version = read(path.join(root, 'package.json')).version
@@ -71,13 +83,19 @@ async function build () {
   process.env.BRAND_RES_DIR = path.join(root, '.release-inputs', 'resource')
   process.env.NODE_ENV = 'production'
   const vite = path.join(root, 'node_modules/vite/bin/vite.js')
-  run(path.join(root, 'src/build/vite'), vite, ['build', '--config', path.join(root, 'src/build/vite/conf.js'), '--configLoader', 'runner'])
+  run(path.join(root, 'src/build/vite'), vite, ['build', '--config', nativeViteConfig(root), '--configLoader', 'runner'])
   for (const script of ['copy', 'pug']) run(root, path.join(__dirname, script + '.js'))
   run(producer, vite, ['build', '--config', path.join(producer, 'build/vite/conf.js'), '--configLoader', 'runner'])
   run(producer, path.join(producer, 'build/bin/copy.js'))
   const assets = path.join(producer, 'dist/assets')
   const { collectThirdPartyNotices } = await import(pathToFileURL(path.join(producer, 'build/bin/third-party-notices.js')).href)
-  await collectThirdPartyNotices({ root, assets, requireCompliance: true })
+  const nativeBundleManifest = path.join(root, 'work/app/assets/browser-dependencies.json')
+  await collectThirdPartyNotices({
+    root,
+    assets,
+    requireCompliance: true,
+    additionalBundleManifests: [nativeBundleManifest]
+  })
   for (const relative of [`js/basic-${version}.js`, `js/electerm-${version}.js`, `js/worker-${version}.js`, `css/style-${version}.css`]) {
     for (const base of [assets, path.join(root, 'work/app/assets')]) assert(fs.statSync(path.join(base, relative)).size > 0)
   }
@@ -90,6 +108,8 @@ async function build () {
     version,
     sources: manifest,
     currentAppClientCompiledIntoDesktopAndBrowser: true,
+    nativeBundleDependenciesSha256: sha256(fs.readFileSync(nativeBundleManifest)),
+    browserBundleDependenciesSha256: sha256(fs.readFileSync(path.join(assets, 'browser-dependencies.json'))),
     browserPugSha256: sha256(html)
   }
   fs.writeFileSync(path.join(root, '.release-build/source-provenance.json'), JSON.stringify(receipt, null, 2), { flag: 'wx' })
@@ -131,4 +151,4 @@ if (require.main === module) {
   } else throw new Error('Expected pins, verify or build')
 }
 
-module.exports = { pins, verify, copyTracked, stageSdk }
+module.exports = { pins, verify, copyTracked, stageSdk, nativeViteConfig }

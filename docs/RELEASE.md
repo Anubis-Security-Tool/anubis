@@ -1,5 +1,12 @@
 # Release and application distribution
 
+Fresh native releases record the actual Vite module identities from both the
+desktop renderer and embedded browser builds. The notice collector validates
+their union against the actual Main lockfile before applying redistribution
+license/source gates. Development-only classification alone never exempts a
+bundled dependency; original available notices and metadata are retained for
+build-only tools as well. and application distribution
+
 Builds and updates use `Anubis-Locker/anubis`, our npm registry and our VPS.
 The release workflow does not depend on a separate website repository and does
 not deploy the main website or the public demo.

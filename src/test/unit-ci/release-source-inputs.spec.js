@@ -5,16 +5,39 @@ const path = require('node:path')
 const os = require('node:os')
 const zlib = require('node:zlib')
 const crypto = require('node:crypto')
-const { pins, stageSdk } = require('../../build/bin/release-source-inputs')
+const { pins, stageSdk, nativeViteConfig } = require('../../build/bin/release-source-inputs')
 const { patchTarget, HELPER_SHA256 } = require('../../build/bin/nsis/release-support')
 const { verifyBlockmap } = require('../../build/bin/nsis/build-release')
 const { assembleWebClient } = require('../../build/bin/assemble-web-client')
+const { pathToFileURL } = require('node:url')
 const root = path.resolve(__dirname, '../../..')
 const digest = value => crypto.createHash('sha256').update(value).digest('hex')
 
 test('release pins use immutable exact own source commits', () => {
   assert.equal(pins().schemaVersion, 1)
   for (const name of ['resource', 'web', 'sdk']) assert.match(pins()[name].commit, /^[a-f0-9]{40}$/)
+})
+
+test('fresh native Vite retains its config and emits actual module evidence with the exact pinned browser plugin', async () => {
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'anubis-native-vite-proof-'))
+  try {
+    fs.mkdirSync(path.join(temporary, 'src/build/vite'), { recursive: true })
+    fs.mkdirSync(path.join(temporary, '.release-build/browser/build/vite'), { recursive: true })
+    fs.writeFileSync(path.join(temporary, 'package.json'), '{"type":"module"}')
+    fs.writeFileSync(path.join(temporary, 'src/build/vite/conf.js'),
+      "export default { plugins: [{ name: 'native-ui' }], root: 'unchanged', build: { outDir: 'assets' } }")
+    fs.writeFileSync(path.join(temporary, '.release-build/browser/build/vite/browser-dependencies.js'),
+      "export function browserDependencies () { return { name: 'actual-pinned-evidence' } }")
+    const config = nativeViteConfig(temporary)
+    const { default: actual } = await import(pathToFileURL(config).href)
+    assert.deepEqual(actual.plugins.map(plugin => plugin.name), ['native-ui', 'actual-pinned-evidence'])
+    assert.equal(actual.root, 'unchanged')
+    assert.deepEqual(actual.build, { outDir: 'assets' })
+    assert.throws(() => nativeViteConfig(temporary), { code: 'EEXIST' })
+    const driver = fs.readFileSync(path.join(root, 'src/build/bin/release-source-inputs.js'), 'utf8')
+    assert(driver.includes('additionalBundleManifests: [nativeBundleManifest]'))
+    assert(driver.includes("path.join(root, 'work/app/assets/browser-dependencies.json')"))
+  } finally { fs.rmSync(temporary, { recursive: true, force: true }) }
 })
 
 test('locale navigation targets the real public package source and existing file layout', () => {
