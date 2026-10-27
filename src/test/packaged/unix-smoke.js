@@ -4,7 +4,7 @@ const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = require('node:fs')
 const { tmpdir } = require('node:os')
 const { join, resolve } = require('node:path')
 const { _electron: electron } = require('playwright')
-const { checkRendererNavigation } = require('./lib/renderer-navigation')
+const { checkRendererNavigation, captureFirstSubtestFailure } = require('./lib/renderer-navigation')
 const { checkUIDataFlows, checkUIDataPersistence } = require('./lib/ui-data-flows')
 const { startTestSerialServer } = require('../integration/lib/serial-test-server')
 const { checkSerialSession } = require('./lib/serial-session')
@@ -31,6 +31,7 @@ test('packaged Unix desktop functionality', {
   let page
   let serial
   let completed = false
+  const hasSubtestFailure = captureFirstSubtestFailure(t, () => page, 'packaged-unix-failure.png')
   async function closeApp () {
     const current = app
     app = null
@@ -85,7 +86,7 @@ test('packaged Unix desktop functionality', {
   }
   t.after(async () => {
     try {
-      if (!completed && page && !page.isClosed()) {
+      if (!completed && !hasSubtestFailure() && page && !page.isClosed()) {
         await page.screenshot({ path: 'packaged-unix-failure.png', timeout: 5000 })
           .catch(error => console.error('Cannot capture packaged runtime failure:', error))
       }
