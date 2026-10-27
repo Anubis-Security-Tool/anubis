@@ -6,7 +6,7 @@ This procedure separates the application source/install from user data and machi
 
 1. Record the Desktop and Web versions, operating system, installation type (Desktop, standalone Web or managed Web), and which connections you need to recreate.
 2. In Desktop, open **Settings → Sync** and use the application's export action for the data categories you need. The all-data/configuration export contains sensitive settings; store it in an encrypted, access-controlled location. Use the bookmark toolbar's export action if you need a separate bookmark/group file.
-3. If you use Web, stop its service cleanly and make a separate, private backup of the configured `DB_PATH` as described in [Web data backup and restore](#web-data-backup-and-restore).
+3. If you use Web, first review/disable automatic sync and export any needed sync data from **Settings → Sync**. Then stop its service and make a separate, private backup of the configured `DB_PATH` as described below if you need the full Web profile.
 4. Back up SSH keys and certificates through your approved secret-management process. Do not put them in the project clone, issue tracker, Wiki, or an unencrypted transfer archive.
 5. Keep the old machine's installation and backup available until the new profile's bookmarks, connections and file workflows have been checked.
 
@@ -28,13 +28,24 @@ For a source-suite move, export/import Desktop data through the application rath
 
 ## Web data backup and restore
 
-Web has no built-in data export/import command. Its file-level migration is separate from the Desktop profile and must be done with the service stopped:
+Web offers two distinct migration paths. **Settings → Sync file export/import** handles the supported sync-data subset; a full standalone Web profile requires a stopped-service file copy. Neither path is part of the Desktop profile.
 
-1. On the old host, stop the Web service cleanly. Make a private backup of the entire configured `DB_PATH` directory. The packaged CLI defaults to `ANUBIS_WEB_HOME/data` (`ANUBIS_WEB_HOME` defaults to `~/.anubis-web`); source installs use their configured path. This directory includes the SQLite databases (`sqlite/electerm.db` and `sqlite/electerm_data.db`), uploads, session/instance logs and custom modules. Treat the backup as sensitive.
-2. Do not include the Web `.env` or `managed-installation.json` in the backup. The `.env` contains the login password and JWT signing secret; the managed identity must not be duplicated on another host. No separate database-encryption key or built-in cross-version migration guarantee is documented.
-3. On the new host, prepare the same Web version but leave the service stopped. For the packaged CLI, `anubis-web --init` creates fresh private settings; for a source checkout, use its documented `scripts/install-source.js` preparation.
-4. Restore the backed-up database path into a new, private data directory, excluding `managed-installation.json`, and set `DB_PATH` to its absolute path. Keep the newly generated `.env`: `SERVER_PASS` is the Web login password and `SERVER_SECRET` signs session tokens; neither is a database-encryption key. Read the new password locally. If managed access is enabled, starting Web creates a new installation identity that must be enrolled and approved.
-5. Start Web and verify the restored data before upgrading or retiring the old installation. Existing browser tokens will no longer be valid. This is a file-level restore, not an export/import procedure; keep the original backup until the restore has been verified.
+### Settings → Sync file export/import
+
+The export creates a plaintext `*-electerm-all-data.json` file and can include credentials or other sensitive configuration. It covers bookmarks, bookmark groups, terminal themes, quick commands, profiles, address bookmarks, workspaces, triggers and configuration. It does not include the full SQLite databases, history, logs, uploads or managed-installation identity.
+
+Import replaces the covered collections and configuration rather than merging them, and strips runtime-only fields such as the active Web token and host/port/socket values. The exported sync settings can still retain the previous endpoint, user/token and automatic-sync settings. Disable/review autosync before exporting; on the destination, explicitly configure the intended sync endpoint and credentials and keep autosync disabled until you have reviewed the imported configuration. `ANUBIS_SYNC_*` source-suite variables seed only a fresh database and do not overwrite imported settings. If you need encrypted sync payloads, preserve the explicit sync-encryption password; it is separate from `SERVER_SECRET`.
+
+### Full standalone Web profile copy
+
+This file-level transfer must be done while all Web processes using the profile are stopped:
+
+1. On the old host, review/disable automatic sync in the UI, then stop **all** Web processes using the profile. The packaged CLI defaults to `ANUBIS_WEB_HOME/data` (`ANUBIS_WEB_HOME` defaults to `~/.anubis-web`); source installs use their configured `DB_PATH`.
+2. While stopped, make a private backup of the entire resolved `DB_PATH`, including both SQLite databases (`sqlite/electerm.db` and `sqlite/electerm_data.db`), SQLite sidecars, uploads and other profile data. The SQLite adapter stores records as JSON; it is not database-wide encryption, and `SERVER_SECRET` is not a database key. Treat the backup as highly sensitive. `DB_PATH/uploads` is upload staging, not an archive of files moved to caller-chosen destinations; separately migrate any referenced keys/files and reselect their paths on the new host.
+3. Exclude `.env`, the managed identity at `DB_PATH/managed-installation.json`, and any custom `ANUBIS_INSTALLATION_FILE` path. `SERVER_PASS` is only the Web login password and `SERVER_SECRET` only signs JWTs, so fresh strong values do not prevent reading a copied database. Old browser tokens will be invalid; sign in again. Never copy controller/session cookies or managed identity to create a second installation.
+4. On the new host, prepare the **same Web version** and leave it stopped. For the packaged CLI, `anubis-web --init` creates fresh private settings; for a source checkout, use its documented `scripts/install-source.js` preparation. Restore into an empty private target `DB_PATH`; ensure `DB_TYPE` is unset or `sqlite` for the default SQLite adapter. Do not overwrite an existing profile without first backing it up.
+5. Start exactly one Web process against the restored path, sign in with the new `.env` password, review the data and reconfigure sync before enabling it. If managed access is enabled, the new installation identity must be enrolled and fingerprint-approved.
+6. Keep the original backup until the restore is verified. This file-level restore is verified for the same-version default SQLite layout; it is not a generic custom-database or old Desktop database migration guarantee.
 
 ## Import and verify
 
@@ -63,6 +74,6 @@ Default Desktop data directories (unless the installation has an explicit suppor
 | macOS | `~/Library/Application Support/anubis` |
 | Linux | `~/.config/anubis` |
 
-The published Web CLI keeps its private `.env` and default data under `ANUBIS_WEB_HOME` (default `~/.anubis-web`); its default `DB_PATH` is the `data` subdirectory. The SQLite database files are `DB_PATH/sqlite/electerm.db` and `DB_PATH/sqlite/electerm_data.db`; uploads, session/instance logs and custom modules also live beneath `DB_PATH`. Managed installation identity defaults to `DB_PATH/managed-installation.json` and must be newly generated, not copied to another host. In a source-suite run, the Web `.env` remains in the pinned Web checkout at `.anubis-suite/components/web/.env`, while `DB_PATH` places Web database, uploads and logs under `.anubis-suite/data/web/`. Desktop and Node Sync data use sibling directories there; none of these are the default installed Desktop profile.
+The published Web CLI keeps its private `.env` and default data under `ANUBIS_WEB_HOME` (default `~/.anubis-web`); its default `DB_PATH` is the `data` subdirectory. The SQLite database files are `DB_PATH/sqlite/electerm.db` and `DB_PATH/sqlite/electerm_data.db`; uploads, session/instance logs and custom modules also live beneath `DB_PATH`. Managed installation identity defaults to `DB_PATH/managed-installation.json`; a custom `ANUBIS_INSTALLATION_FILE` can place it elsewhere. Neither identity path is portable. In a source-suite run, the Web `.env` remains in the pinned Web checkout at `.anubis-suite/components/web/.env`, while `DB_PATH` places Web database, uploads and logs under `.anubis-suite/data/web/`. Desktop and Node Sync data use sibling directories there; none of these are the default installed Desktop profile.
 
 Local paths vary with portable, managed-device and administrator-controlled configurations. Inspect the active configuration on the old machine rather than assuming a default path. Keep backups private and retain the original until restore is verified.
