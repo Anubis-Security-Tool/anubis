@@ -51,6 +51,7 @@ function privateBuilder (root) {
   const original = path.dirname(require.resolve('app-builder-lib/package.json'))
   assert.equal(JSON.parse(fs.readFileSync(path.join(original, 'package.json'))).version, '26.15.7')
   assert.equal(fileHash(path.join(__dirname, 'data-only-uninstaller.cjs')), HELPER_SHA256)
+  assert.equal(fileHash(path.join(__dirname, 'inspect-pe-resources.cjs')), 'c3863d67691f815eadf4b26269cad87a328b6da5d99901aad1a03c298b37889e')
   const destination = path.join(root, '.release-tools', 'app-builder-lib')
   assert(!fs.existsSync(destination), 'Private builder already exists; no automatic build retries')
   fs.cpSync(original, destination, { recursive: true, dereference: true, errorOnExist: true, force: false })
@@ -89,10 +90,11 @@ async function reconstructWriter (input, output, defines) {
     icon: fs.readFileSync(context.icon)
   })
   const freeBefore = capacity(context.root, 2 * context.archiveBytes + 64 * 1048576)
-  fs.writeFileSync(output, result.output, { flag: 'wx' })
+  fs.writeFileSync(output, result.output, { flag: 'wx', flush: true })
   regular(output)
   assert.equal(fileHash(output), result.evidence.outputSha256)
   assert.equal(fileHash(input), result.evidence.inputSha256)
+  regular(input)
   fs.copyFileSync(output, path.join(context.evidence, 'uninstaller.exe'), fs.constants.COPYFILE_EXCL)
   fs.writeFileSync(path.join(context.evidence, 'data-only-uninstaller.json'), JSON.stringify({
     ...result.evidence,

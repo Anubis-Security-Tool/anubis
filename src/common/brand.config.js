@@ -124,7 +124,7 @@ const brand = {
     releases: `${repoUrl}/releases`,
     discussions: `${repoUrl}/discussions`,
     homepage: site,
-    localesEdit: `https://github.com/${githubOwner}/${id}-locales/edit/master/locales`
+    localesEdit: `https://github.com/${githubOwner}/anubis-packages/edit/main/locales/dist/cjs`
   },
 
   docs: {

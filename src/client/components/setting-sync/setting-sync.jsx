@@ -26,9 +26,12 @@ export default auto(function SyncSettingEntry (props) {
     store
   } = window
   const types = allowedSyncTypes()
-  const type = types.includes(props.syncType)
-    ? props.syncType
-    : types[0]
+  const adminManagedLocalSync = config.adminLockedKeys?.includes('syncSetting.customApiUrl')
+  const type = adminManagedLocalSync && types.includes('custom')
+    ? 'custom'
+    : types.includes(props.syncType)
+      ? props.syncType
+      : types[0]
   useEffect(() => {
     if (store.syncType !== type) {
       store.syncType = type

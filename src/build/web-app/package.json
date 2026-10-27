@@ -1,10 +1,10 @@
 {
   "name": "@ai-security-tool/electerm-react",
-  "version": "5.7.4",
+  "version": "5.7.5",
   "description": "react components src for Anubis-Security-Tool",
   "main": "./client/components/main/main.jsx",
   "license": "MIT",
-  "languageRepo": "https://github.com/Anubis-Security-Tool/anubis-locales",
+  "languageRepo": "https://github.com/Anubis-Security-Tool/anubis-packages/tree/main/locales",
   "privacyNoticeLink": "https://docs.anubis.locker/wiki/privacy-notice",
   "knownIssuesLink": "https://docs.anubis.locker/wiki/known-issues",
   "sponsorLink": "https://anubis.locker",

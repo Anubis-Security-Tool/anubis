@@ -514,3 +514,27 @@ uninstall, reboot/pre-logon, logoff, other-account or non-elevated UAC test.
 Windows/macOS signing, notarization, physical serial hardware and universal
 remote-device compatibility are not certified. The controlled network fixtures
 do not establish new 5.7.2 RDP/SPICE or arbitrary remote-server acceptance.
+
+### Source-pinned release packaging
+
+Native release workflows read immutable resource, Web and managed-access SDK
+commits from `.github/release-sources.json`. They compile Desktop and bundled
+browser assets from the current committed app client, rather than reusing a
+previous release's compiled UI. Standalone Web must consume the corresponding
+immutable renderer publication; changing client source requires a new package
+version, never replacing an existing registry version. Source provenance is
+retained in the CI artifacts.
+
+The Windows x64 NSIS path uses a physical private copy of app-builder-lib
+26.15.7 and the reviewed data-only uninstaller reconstruction helper. Generated
+installer/uninstaller executables are not run while packaging. The build checks
+the pinned compiler, icon and helper bytes, archived runtime members, final PE
+resources, native NSIS CRCs, exact embedded payloads and every external blockmap
+chunk. Proof JSON files are uploaded as `win-nsis-provenance`.
+
+This path currently supports unsigned output only. `CSC_LINK` causes an explicit
+failure until signed-overlay verification is separately reviewed; it does not
+silently disable requested signing or bypass verification. A successful build
+does not establish fresh-install, upgrade, SCM lifecycle or live protocol
+acceptance. Automatic self-hosted release publication is off unless the
+repository variable `ANUBIS_AUTO_SELF_HOSTED_PUBLISH` is explicitly `true`.

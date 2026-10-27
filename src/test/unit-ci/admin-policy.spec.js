@@ -50,6 +50,46 @@ describe('admin-policy (main process)', () => {
     assert.equal(values.enableGlobalProxy, true)
   })
 
+  it('forces and locks a complete loopback custom sync provider', () => {
+    const env = {
+      ANUBIS_ADMIN_CUSTOM_SYNC_API: 'http://127.0.0.1:7101/api/sync',
+      ANUBIS_ADMIN_CUSTOM_SYNC_SECRET: 'a'.repeat(64),
+      ANUBIS_ADMIN_CUSTOM_SYNC_USER: 'b'.repeat(32)
+    }
+    const original = {
+      syncSetting: {
+        customApiUrl: 'https://other.example/api/sync',
+        customAccessToken: 'other-secret',
+        customGistId: 'other-user'
+      }
+    }
+    const policy = require('../../app/common/admin-policy')
+    const forced = policy.applyAdminPolicy(original, { env })
+    assert.equal(forced.syncSetting.customApiUrl, env.ANUBIS_ADMIN_CUSTOM_SYNC_API)
+    assert.equal(forced.syncSetting.customAccessToken, env.ANUBIS_ADMIN_CUSTOM_SYNC_SECRET)
+    assert.equal(forced.syncSetting.customGistId, env.ANUBIS_ADMIN_CUSTOM_SYNC_USER)
+    assert.ok(policy.getAdminLockedKeys(env).includes('syncSetting.customApiUrl'))
+    assert.ok(policy.getAdminLockedKeys(env).includes('syncSetting.customAccessToken'))
+    assert.ok(policy.getAdminLockedKeys(env).includes('syncSetting.customGistId'))
+  })
+
+  it('fails closed for partial or non-loopback local sync settings', () => {
+    const policy = require('../../app/common/admin-policy')
+    assert.throws(() => policy.getAdminPolicy({
+      ANUBIS_ADMIN_CUSTOM_SYNC_API: 'http://127.0.0.1:7101/api/sync'
+    }), /requires .* together/)
+    assert.throws(() => policy.getAdminPolicy({
+      ANUBIS_ADMIN_CUSTOM_SYNC_API: 'https://sync.example/api/sync',
+      ANUBIS_ADMIN_CUSTOM_SYNC_SECRET: 'a'.repeat(64),
+      ANUBIS_ADMIN_CUSTOM_SYNC_USER: 'b'.repeat(32)
+    }), /loopback/)
+    assert.throws(() => policy.getAdminPolicy({
+      ANUBIS_ADMIN_CUSTOM_SYNC_API: 'http://127.0.0.1:7101/api/sync',
+      ANUBIS_ADMIN_CUSTOM_SYNC_SECRET: 'weak',
+      ANUBIS_ADMIN_CUSTOM_SYNC_USER: 'b'.repeat(32)
+    }), /at least 32/)
+  })
+
   it('proxy is not locked without admin proxy', () => {
     assert.ok(!policy.getAdminLockedKeys({}).includes('proxy'))
   })

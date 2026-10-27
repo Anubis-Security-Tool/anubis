@@ -64,18 +64,21 @@ export default function SyncForm (props) {
 
   async function save (res) {
     const { syncType } = props
-    const up = {
-      [syncType + 'AccessToken']: res.token
-    }
-    if (res.gistId) {
+    const managedCustom = syncType === syncTypes.custom && isAdminLocked('syncSetting.customApiUrl')
+    const up = managedCustom
+      ? {}
+      : {
+          [syncType + 'AccessToken']: res.token
+        }
+    if (!managedCustom && res.gistId) {
       up[syncType + 'GistId'] = res.gistId
-    } else if (syncType === syncTypes.cloud) {
+    } else if (!managedCustom && syncType === syncTypes.cloud) {
       up[syncType + 'GistId'] = 'cloud'
     }
     up[syncType + 'SyncPassword'] = res.syncPassword || ''
-    if (res.apiUrl) {
+    if (!managedCustom && res.apiUrl) {
       up[syncType + 'ApiUrl'] = res.apiUrl
-    } else if (syncType === syncTypes.cloud) {
+    } else if (!managedCustom && syncType === syncTypes.cloud) {
       up[syncType + 'ApiUrl'] = brand.sync.cloudApi
       // up[syncType + 'ApiUrl'] = 'http://127.0.0.1:5678/api/sync'
     }
@@ -144,6 +147,7 @@ export default function SyncForm (props) {
   } = props.formData
 
   const isCustom = syncType === syncTypes.custom
+  const adminManagedCustomSync = isCustom && isAdminLocked('syncSetting.customApiUrl')
   const timeFormatted = lastSyncTime
     ? dayjs(lastSyncTime).format('YYYY-MM-DD HH:mm:ss')
     : '-'
@@ -308,6 +312,9 @@ export default function SyncForm (props) {
   const syncPasswordName = e('encrypt') + ' ' + e('password')
   const syncPasswordLabel = createLabel(syncPasswordName, '')
   function createIdItem () {
+    if (adminManagedCustomSync) {
+      return null
+    }
     if (syncType === syncTypes.cloud || syncType === syncTypes.webdav) {
       return null
     }
@@ -368,6 +375,9 @@ export default function SyncForm (props) {
     status: props.serverStatus
   }
   function createTokenItem () {
+    if (adminManagedCustomSync) {
+      return null
+    }
     if (syncType === syncTypes.webdav) {
       return null
     }
@@ -399,6 +409,17 @@ export default function SyncForm (props) {
       layout='vertical'
       initialValues={props.formData}
     >
+      {
+        adminManagedCustomSync
+          ? (
+            <Alert
+              message={`${brand.name}: custom sync server is managed by the administrator`}
+              type='info'
+              showIcon
+            />
+            )
+          : null
+      }
       {renderWarning()}
       {createUrlItem()}
       {createTokenItem()}

@@ -1,6 +1,6 @@
 {
   "name": "anubis",
-  "version": "5.7.4",
+  "version": "5.7.5",
   "description": "Anubis-Security-Tool: terminal/ssh/sftp/telnet/serialport/RDP/VNC/Spice/ftp client (Linux, macOS, Windows).",
   "main": "app.js",
   "scripts": {
@@ -32,7 +32,7 @@
     "lock": "npm i --package-lock-only"
   },
   "license": "MIT",
-  "languageRepo": "https://github.com/Anubis-Security-Tool/anubis-locales",
+  "languageRepo": "https://github.com/Anubis-Security-Tool/anubis-packages/tree/main/locales",
   "privacyNoticeLink": "https://docs.anubis.locker/wiki/privacy-notice",
   "knownIssuesLink": "https://docs.anubis.locker/wiki/Know-issues",
   "sponsorLink": "https://anubis.locker/sponsor",

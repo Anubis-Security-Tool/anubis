@@ -30,6 +30,7 @@ function verifyBlockmap (installer, encoded, blake2b) {
   assert.equal(map.version, '2')
   assert.equal(map.files.length, 1)
   const file = map.files[0]
+  assert.equal(file.name, 'file')
   assert.equal(file.offset, 0)
   assert(file.sizes.length > 0 && file.sizes.length === file.checksums.length)
   let offset = 0
@@ -78,6 +79,7 @@ function verifyEmbedded (bytes, archive, uninstaller) {
       assert.equal(inflated.engine.bytesWritten, size)
       data = inflated.buffer
     }
+    if (frames === 1) assert.equal(data.length, bytes.readUInt32LE(prefix + 20))
     if (data.length === archive.bytes && crypto.createHash('sha256').update(data).digest('hex') === archive.sha256) {
       assert(!compressed)
       archives++
@@ -115,6 +117,9 @@ function verifySourceAsar (root, runtime) {
   const sdk = path.join(root, '.release-inputs/sdk')
   const sdkPack = JSON.parse(fs.readFileSync(path.join(sdk, 'package.json')))
   assert.equal(pack.dependencies[sdkPack.name], sdkPack.version)
+  const expectedSdkPack = { ...sdkPack }
+  delete expectedSdkPack.scripts
+  assert.deepEqual(JSON.parse(get(path.join('node_modules', sdkPack.name, 'package.json'))), expectedSdkPack)
   for (const file of sdkPack.files) assert(get(path.join('node_modules', sdkPack.name, file)).equals(fs.readFileSync(path.join(sdk, file))))
 }
 

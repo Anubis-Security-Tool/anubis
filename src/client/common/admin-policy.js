@@ -9,6 +9,9 @@
 
 export const ADMIN_LOCKABLE_KEYS = [
   'syncSetting.cloudApiUrl',
+  'syncSetting.customApiUrl',
+  'syncSetting.customAccessToken',
+  'syncSetting.customGistId',
   'baseURLAI',
   'apiPathAI',
   'authHeaderNameAI',

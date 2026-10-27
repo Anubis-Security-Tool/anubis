@@ -15,6 +15,7 @@ function launch (args, installed = true) {
       if (name === 'path') return path.win32
       if (name === 'fs') return { existsSync: () => installed }
       if (name === 'electron') return { app, dialog: { showErrorBox: () => calls.push(['error']) } }
+      if (name === './lib/source-suite-profile') return { configureIsolatedUserData () {} }
       if (name === './lib/machine-client-entry') return { startMachineClient: () => { calls.push(['machine-client']); return Promise.resolve() } }
       if (name === './common/log') return { debug () {}, error () {} }
       if (name === './lib/create-app') return { createApp: () => { calls.push(['desktop']); return Promise.resolve() } }

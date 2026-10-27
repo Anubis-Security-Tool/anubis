@@ -17,6 +17,13 @@ test('release pins use immutable exact own source commits', () => {
   for (const name of ['resource', 'web', 'sdk']) assert.match(pins()[name].commit, /^[a-f0-9]{40}$/)
 })
 
+test('locale navigation targets the real public package source and existing file layout', () => {
+  const pack = require('../../../package.json')
+  const brand = require('../../common/brand.config')
+  assert.equal(pack.languageRepo, 'https://github.com/Anubis-Security-Tool/anubis-packages/tree/main/locales')
+  assert.equal(brand.repo.localesEdit, 'https://github.com/Anubis-Security-Tool/anubis-packages/edit/main/locales/dist/cjs')
+})
+
 test('private NSIS patch removes every generated writer execution fallback and binds exact original', () => {
   const original = path.join(path.dirname(require.resolve('app-builder-lib/package.json')), 'out/targets/nsis/NsisTarget.js')
   const code = fs.readFileSync(original, 'utf8')
@@ -35,13 +42,14 @@ test('blockmap verification requires every exact byte, checksum and positive chu
   const bytes = Buffer.from('exact installer bytes')
   const sizes = [4, bytes.length - 4]
   const checksums = [bytes.subarray(0, 4), bytes.subarray(4)].map(chunk => Buffer.from(blake2b(chunk, { dkLen: 18 })).toString('base64'))
-  const map = { version: '2', files: [{ offset: 0, sizes, checksums }] }
+  const map = { version: '2', files: [{ name: 'file', offset: 0, sizes, checksums }] }
   const encoded = value => zlib.gzipSync(JSON.stringify(value))
   assert.equal(verifyBlockmap(bytes, encoded(map), blake2b), 2)
   assert.throws(() => verifyBlockmap(Buffer.concat([bytes, Buffer.from('x')]), encoded(map), blake2b))
   assert.throws(() => verifyBlockmap(Buffer.from('wrong installer bytes'), encoded(map), blake2b))
-  assert.throws(() => verifyBlockmap(bytes, encoded({ ...map, files: [{ offset: 0, sizes: [0, bytes.length], checksums }] }), blake2b))
-  assert.throws(() => verifyBlockmap(bytes, encoded({ ...map, files: [{ offset: 1, sizes, checksums }] }), blake2b))
+  assert.throws(() => verifyBlockmap(bytes, encoded({ ...map, files: [{ name: 'file', offset: 0, sizes: [0, bytes.length], checksums }] }), blake2b))
+  assert.throws(() => verifyBlockmap(bytes, encoded({ ...map, files: [{ name: 'file', offset: 1, sizes, checksums }] }), blake2b))
+  assert.throws(() => verifyBlockmap(bytes, encoded({ ...map, files: [{ name: 'wrong', offset: 0, sizes, checksums }] }), blake2b))
 })
 
 test('source SDK staging requires exact runtime version and rejects traversal before replacing files', () => {

@@ -23,6 +23,7 @@ function startMachineRuntime () {
 function startDesktop () {
   const { app: electronApp } = require('electron')
   const path = require('path')
+  require('./lib/source-suite-profile').configureIsolatedUserData(electronApp)
   const marker = path.join(path.dirname(process.execPath), 'anubis-machine-install.json')
   const machineInstalled = process.platform === 'win32' && require('fs').existsSync(marker)
   if (process.platform === 'win32' && process.argv.includes('--anubis-machine-client')) {

@@ -37,7 +37,7 @@ jobs:
     - name: Verify machine installer contracts (no installation)
       run: node --test src/test/unit-ci/windows-machine-packaging.spec.js src/test/unit-ci/windows-machine-edition.spec.js src/test/unit-ci/windows-installer.spec.js
 
-    - name: Build NSIS installer (signed only when CSC_LINK is set)
+    - name: Build verified unsigned NSIS installer (signed overlays unsupported)
       shell: bash
       env:
         BUILD_NUMBER: ${{ secrets.BUILD_NUMBER }}

@@ -19,6 +19,9 @@ const brand = require('./brand')
 
 const ADMIN_LOCKABLE_KEYS = [
   'syncSetting.cloudApiUrl',
+  'syncSetting.customApiUrl',
+  'syncSetting.customAccessToken',
+  'syncSetting.customGistId',
   'baseURLAI',
   'apiPathAI',
   'authHeaderNameAI',
@@ -48,6 +51,32 @@ function apiBase () {
   return brand.domains.api || `https://api.${new URL(brand.domains.site).hostname}`
 }
 
+function validateLocalSyncSettings (apiUrl, secret, userId) {
+  let url
+  try {
+    url = new URL(apiUrl)
+  } catch {
+    throw new Error('ANUBIS_ADMIN_CUSTOM_SYNC_API must be a loopback /api/sync URL')
+  }
+  if (
+    url.protocol !== 'http:' ||
+    !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname) ||
+    url.pathname !== '/api/sync' ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash
+  ) {
+    throw new Error('ANUBIS_ADMIN_CUSTOM_SYNC_API must be a loopback /api/sync URL')
+  }
+  if (secret.length < 32 || /\s/.test(secret)) {
+    throw new Error('ANUBIS_ADMIN_CUSTOM_SYNC_SECRET must contain at least 32 non-whitespace characters')
+  }
+  if (!/^[A-Za-z0-9._-]{8,100}$/.test(userId)) {
+    throw new Error('ANUBIS_ADMIN_CUSTOM_SYNC_USER must be 8-100 safe identifier characters')
+  }
+}
+
 /**
  * @returns {{ values: object, locked: string[] }}
  *   values: dotted key -> forced value; locked: keys hidden/read-only in UI
@@ -65,6 +94,20 @@ function getAdminPolicy (env = process.env) {
     autoStartOnLogin: envBool(env.ANUBIS_ADMIN_AUTOSTART, true)
   }
   const locked = Object.keys(values)
+  const customSyncApi = envStr(env.ANUBIS_ADMIN_CUSTOM_SYNC_API, '')
+  const customSyncSecret = envStr(env.ANUBIS_ADMIN_CUSTOM_SYNC_SECRET, '')
+  const customSyncUser = envStr(env.ANUBIS_ADMIN_CUSTOM_SYNC_USER, '')
+  const customSyncValues = [customSyncApi, customSyncSecret, customSyncUser]
+  if (customSyncValues.some(Boolean)) {
+    if (!customSyncValues.every(Boolean)) {
+      throw new Error('Local custom sync requires ANUBIS_ADMIN_CUSTOM_SYNC_API, ANUBIS_ADMIN_CUSTOM_SYNC_SECRET and ANUBIS_ADMIN_CUSTOM_SYNC_USER together')
+    }
+    validateLocalSyncSettings(customSyncApi, customSyncSecret, customSyncUser)
+    values['syncSetting.customApiUrl'] = customSyncApi
+    values['syncSetting.customAccessToken'] = customSyncSecret
+    values['syncSetting.customGistId'] = customSyncUser
+    locked.push('syncSetting.customApiUrl', 'syncSetting.customAccessToken', 'syncSetting.customGistId')
+  }
   // proxy is enforced only when the admin provides one
   const proxy = envStr(env.ANUBIS_ADMIN_PROXY, '')
   if (proxy) {
