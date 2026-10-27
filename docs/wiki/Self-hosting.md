@@ -8,6 +8,7 @@
 | Web-обёртка | [anubis-web](https://github.com/Anubis-Security-Tool/anubis-web): runnable Web, CLI и собственная конфигурация |
 | Ресурсы | [anubis-resource](https://github.com/Anubis-Security-Tool/anubis-resource): брендовые ресурсы |
 | Managed access | [anubis-managed-access](https://github.com/Anubis-Security-Tool/anubis-managed-access): отдельный компонент управляемого доступа |
+| Сайт распространения | [anubis-site](https://github.com/Anubis-Security-Tool/anubis-site): независимый static publisher и release ingester |
 | Службы в app source | `services`: management API/dashboard, release API, AI stub, примеры Nginx |
 
 Используйте инструкции и dependency manifests конкретного компонента. Не выдумывайте npm-пакеты или GitHub-ссылки для локальных вспомогательных модулей. Наличие исходной папки не означает опубликованный сервис.

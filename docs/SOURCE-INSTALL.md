@@ -31,7 +31,7 @@ The optional `--workspace <path>` selects the generated workspace (default: `.an
 | `cloudflare-sync` | Fetches and installs the Worker/D1 source and dependencies | Does not create a Cloudflare account/database or deploy |
 | `http-tunnel` | Fetches and installs the separate HTTP tunnel service | Does not start or expose it; GPL-3.0 source and notices remain applicable |
 | `rdpjs` | Fetches the historical RDP reference source | Does not install a Desktop plugin or replace the active RDP client |
-| `site` | Fetches the independently maintained website/release-ingester source when its immutable pin is present | Does not publish a website or accept a release |
+| `site` | Fetches the immutable [`anubis-site`](https://github.com/Anubis-Security-Tool/anubis-site) publisher source and runs its dependency-free tests | Does not ingest a release, build deployment output, publish a website or accept a release |
 
 For example, `node scripts/source-suite.js install --with cloudflare-sync` prepares the optional Worker source only. The unlicensed legacy Go release API is not included or redistributed; the site's Node release ingester is a separate implementation.
 

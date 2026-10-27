@@ -22,7 +22,7 @@ The application has **no general dynamic plugin marketplace**. The seven PRO men
 
 The client contains its sync protocol implementation. A sync server is a separate service: the source-suite setup builds a local Node.js server bound to loopback for development. The Cloudflare Worker is an alternative provider requiring your own account, D1 database and explicit deployment; source installation does not deploy it.
 
-SSH tunneling is built into the client. The separate HTTP tunnel server is not required for it. The historical `rdpjs` project is not the Desktop RDP implementation; Desktop RDP uses its current packaged client. Release APIs and the website are independent services, not runtime plugins. See [source installation and component boundaries](docs/SOURCE-INSTALL.md) before setting up optional services.
+SSH tunneling is built into the client. The separate HTTP tunnel server is not required for it. The historical `rdpjs` project is not the Desktop RDP implementation; Desktop RDP uses its current packaged client. The [anubis-site publisher](https://github.com/Anubis-Security-Tool/anubis-site) is an independent distribution service, not a runtime plugin. See [source installation and component boundaries](docs/SOURCE-INSTALL.md) before setting up optional services.
 
 ## Install a published application
 
@@ -56,7 +56,7 @@ cd anubis
 node scripts/source-suite.js install
 ```
 
-The intended default source suite includes Desktop, standalone Web, source-aligned renderer/resources/managed-access SDK dependencies and the loopback Node sync server. Optional Cloudflare sync, HTTP tunnel and legacy RDP reference components must be explicitly selected; Cloudflare deployment always remains a separate operator action. The unlicensed legacy Go release API is not included.
+The intended default source suite includes Desktop, standalone Web, source-aligned renderer/resources/managed-access SDK dependencies and the loopback Node sync server. Optional site publisher, Cloudflare sync, HTTP tunnel and legacy RDP reference components must be explicitly selected; Cloudflare deployment always remains a separate operator action. The unlicensed legacy Go release API is not included.
 
 Once the manifest is present, the command builds application sources; it **does not install an OS package**, publish a release, enroll a device or deploy a public service. Follow [source installation](docs/SOURCE-INSTALL.md) for the exact folder map, local sync setup and platform packaging boundaries. Do not mix artifacts from unrelated source commits.
 
@@ -81,6 +81,7 @@ The full procedure, portability limits and platform data paths are in the [migra
 - [Web distribution](https://github.com/Anubis-Security-Tool/anubis-web)
 - [Brand resources](https://github.com/Anubis-Security-Tool/anubis-resource)
 - [Managed access](https://github.com/Anubis-Security-Tool/anubis-managed-access)
+- [Website publisher source](https://github.com/Anubis-Security-Tool/anubis-site)
 - [Issues](https://github.com/Anubis-Security-Tool/anubis/issues)
 
 ## License and attribution

@@ -404,18 +404,18 @@ function installOptionalComponent (name, checkout, { npm = npmRun, node = proces
   if (!fs.existsSync(packageJson)) {
     throw new Error(`Selected optional component "${name}" has no package.json: ${packageJson}`)
   }
-  if (fs.existsSync(path.join(checkout, 'package-lock.json'))) {
+  const pkg = JSON.parse(fs.readFileSync(packageJson, 'utf8'))
+  const lockFile = path.join(checkout, 'package-lock.json')
+  if (fs.existsSync(lockFile)) {
     npm(['ci', '--legacy-peer-deps', '--no-audit', '--no-fund', `--registry=${registry}`], { cwd: checkout })
-  } else {
+  } else if (name !== 'site' || ['dependencies', 'devDependencies', 'optionalDependencies'].some(key => Object.keys(pkg[key] || {}).length)) {
     throw new Error(`Selected optional component "${name}" has no package-lock.json; refusing an unpinned dependency install`)
   }
   if (name === 'cloudflare-sync') {
     npm(['test'], { cwd: checkout })
   } else if (name === 'site') {
-    const pkg = JSON.parse(fs.readFileSync(packageJson, 'utf8'))
-    if (pkg.scripts?.test) {
-      npm(['test'], { cwd: checkout })
-    }
+    if (!pkg.scripts?.test) throw new Error('Selected site source has no test script')
+    npm(['test'], { cwd: checkout })
   }
 }
 
@@ -775,6 +775,7 @@ module.exports = {
   expectedPackage,
   assertPackageVersion,
   verifyPackageMetadata,
+  installOptionalComponent,
   sourceEnvironment,
   gitHead,
   assertCleanRoot,

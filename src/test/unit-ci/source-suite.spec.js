@@ -54,6 +54,37 @@ describe('source suite bootstrap', () => {
     assert.throws(() => suite.validatePins(pins), /canonical Anubis-Security-Tool/)
   })
 
+  it('tests dependency-free site source without installing dependencies', () => {
+    const checkout = fs.mkdtempSync(path.join(os.tmpdir(), 'anubis-site-'))
+    const calls = []
+    const npm = (args, options) => calls.push({ args, options })
+    const packageJson = path.join(checkout, 'package.json')
+    try {
+      writeJson(packageJson, {
+        name: '@ai-security-tool/anubis-site',
+        version: '1.0.0',
+        scripts: { test: 'node test/test.js' }
+      })
+      suite.installOptionalComponent('site', checkout, { npm })
+      assert.deepEqual(calls.map(call => call.args), [['test']])
+
+      writeJson(packageJson, {
+        name: '@ai-security-tool/anubis-site',
+        version: '1.0.0',
+        dependencies: { example: '1.0.0' },
+        scripts: { test: 'node test/test.js' }
+      })
+      assert.throws(() => suite.installOptionalComponent('site', checkout, { npm }), /no package-lock\.json/)
+      writeJson(packageJson, {
+        name: '@ai-security-tool/anubis-site',
+        version: '1.0.0'
+      })
+      assert.throws(() => suite.installOptionalComponent('site', checkout, { npm }), /no test script/)
+    } finally {
+      fs.rmSync(checkout, { recursive: true, force: true })
+    }
+  })
+
   it('creates local sync credentials once and refuses to replace credentials when data remains', () => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'anubis-suite-sync-'))
     const secureDirectories = []
