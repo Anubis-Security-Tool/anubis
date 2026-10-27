@@ -7,10 +7,11 @@ const zlib = require('node:zlib')
 const crypto = require('node:crypto')
 const { pins, stageSdk, nativeViteConfig, prepareReleaseApp } = require('../../build/bin/release-source-inputs')
 const { patchTarget, HELPER_SHA256 } = require('../../build/bin/nsis/release-support')
-const { verifyBlockmap } = require('../../build/bin/nsis/build-release')
+const { verifyBlockmap, verifyRuntimeInventory } = require('../../build/bin/nsis/build-release')
 const { assembleWebClient } = require('../../build/bin/assemble-web-client')
 const { pathToFileURL } = require('node:url')
 const { spawnSync } = require('node:child_process')
+const { finished } = require('node:stream/promises')
 const root = path.resolve(__dirname, '../../..')
 const digest = value => crypto.createHash('sha256').update(value).digest('hex')
 
@@ -124,6 +125,80 @@ test('NSIS CLI failures remain nonzero despite the actual builder cleanup hook',
       if (failure) assert.match(result.stderr, /NSIS failure fixture|Native Windows x64 release runner required/)
       else assert.equal(result.stderr, '')
     }
+  } finally { fs.rmSync(temporary, { recursive: true, force: true }) }
+})
+
+test('NSIS inventories require the exact runtime and every actual unpacked member, not a file-count approximation', async () => {
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'anubis-nsis-inventory-'))
+  try {
+    const runtime = path.join(temporary, 'runtime')
+    const app = path.join(temporary, 'app')
+    const write = (base, relative, bytes = 'runtime fixture') => {
+      const file = path.join(base, relative)
+      fs.mkdirSync(path.dirname(file), { recursive: true })
+      fs.writeFileSync(file, bytes)
+    }
+    for (const relative of [
+      'anubis.exe', 'anubis-host.exe', 'chrome_100_percent.pak', 'chrome_200_percent.pak',
+      'd3dcompiler_47.dll', 'dxcompiler.dll', 'dxil.dll', 'ffmpeg.dll', 'icudtl.dat',
+      'LICENSE.electron.txt', 'LICENSES.chromium.html', 'locales/en-US.pak',
+      'resources.pak', 'resources/elevate.exe', 'snapshot_blob.bin', 'v8_context_snapshot.bin',
+      'vk_swiftshader_icd.json', 'vk_swiftshader.dll', 'vulkan-1.dll',
+      'resources/app.asar.unpacked/node_modules/node-pty/build/Release/conpty/conpty.dll',
+      'resources/app.asar.unpacked/node_modules/node-pty/build/Release/conpty/OpenConsole.exe'
+    ]) write(runtime, relative)
+    const required = [
+      'node_modules/node-pty/build/Release/conpty.node',
+      'node_modules/node-pty/build/Release/conpty_console_list.node',
+      'node_modules/@serialport/bindings-cpp/build/Release/bindings.node'
+    ]
+    for (const relative of required) write(app, relative)
+    for (let i = 0; i < 170; i++) write(app, `node_modules/node-pty/build/Release/obj/rebuilt-${i}.node`)
+    const asar = require('@electron/asar')
+    const archive = path.join(runtime, 'resources/app.asar')
+    const pack = async () => finished(await asar.createPackageWithOptions(app, archive, { unpack: '**/*.node' }))
+    await pack()
+    const original = Buffer.from('Original Go license fixture\n')
+    const sha256 = digest(original)
+    const record = { source: 'go-toolchain', version: 'go1.27.3', original: 'LICENSE', relative: `${sha256}.txt`, bytes: original.length, sha256 }
+    const notices = { schemaVersion: 1, files: [record, { ...record, source: 'golang.org/x/sys', version: 'v0.1.0' }] }
+    const manifest = 'third-party-go-notices/manifest.json'
+    const notice = `third-party-go-notices/${record.relative}`
+    write(runtime, manifest, JSON.stringify(notices))
+    write(runtime, notice, original)
+    const inventory = () => require('../../build/bin/nsis/release-support').inventory(runtime)
+    const verify = () => verifyRuntimeInventory(runtime, inventory())
+    assert(inventory().length > 160)
+    verify()
+    for (const unexpected of [
+      'resources/unindexed.dll',
+      'resources/app.asar.unpacked/node_modules/node-pty/build/Release/unindexed.dll',
+      'third-party-go-notices/unindexed.txt'
+    ]) {
+      write(runtime, unexpected)
+      assert.throws(verify, /Windows runtime inventory/)
+      fs.unlinkSync(path.join(runtime, unexpected))
+    }
+    write(runtime, 'anubis-machine-install.json', '{}')
+    assert.throws(verify, /Windows runtime inventory/)
+    fs.unlinkSync(path.join(runtime, 'anubis-machine-install.json'))
+    fs.unlinkSync(path.join(runtime, 'resources/elevate.exe'))
+    assert.throws(verify, /Windows runtime inventory/)
+    write(runtime, 'resources/elevate.exe')
+    const unpacked = `resources/app.asar.unpacked/${required[0]}`
+    fs.unlinkSync(path.join(runtime, unpacked))
+    assert.throws(verify, /Windows runtime inventory/)
+    write(runtime, unpacked)
+    write(runtime, notice, Buffer.alloc(original.length))
+    assert.throws(verify, /Changed or missing original Go notice/)
+    write(runtime, notice, original)
+    write(runtime, manifest, JSON.stringify({ ...notices, files: [{ ...record, relative: '../escape' }] }))
+    assert.throws(verify, /Unsafe original Go notice path/)
+    write(runtime, manifest, JSON.stringify(notices))
+    verify()
+    fs.unlinkSync(path.join(app, required[1]))
+    await pack()
+    assert.throws(verify, /Missing unpacked Windows native module/)
   } finally { fs.rmSync(temporary, { recursive: true, force: true }) }
 })
 

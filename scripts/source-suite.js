@@ -516,15 +516,54 @@ async function installSuite (options, {
   for (const name of selected.filter(name => optionalComponents.has(name))) {
     installOptionalComponent(name, checkouts[name], { npm, node })
   }
-  const desktopBuild = path.join(sourceRoot, 'work', 'app', 'app.js')
-  const webManifest = path.join(checkouts.web, 'dist', 'assets', 'views', 'asset-manifest.json')
-  if (!fs.existsSync(desktopBuild) || !fs.existsSync(webManifest)) {
-    throw new Error('Source build completed without the required Desktop and Web runtime artifacts')
-  }
+  resolveDesktopEntry(sourceRoot)
+  const webRuntime = assertStandaloneWebArtifacts(checkouts.web)
+  run(node, [webRuntime.checker, '--check'], { cwd: checkouts.web, stdio: 'inherit' })
   log.info(`[anubis] Source suite built. Local workspace: ${workspace}`)
   log.info('[anubis] Run with: node scripts/source-suite.js run')
   log.info('[anubis] No public service was deployed; no installer or release was created.')
   return { workspace, appCommit, checkouts, resourcePkg, sdkPkg, rendererPkg, browserAssetsPkg, syncConfig }
+}
+
+function resolveDesktopEntry (sourceRoot) {
+  const desktopRoot = path.join(sourceRoot, 'work', 'app')
+  const packageFile = path.join(desktopRoot, 'package.json')
+  let desktopPackage
+  try {
+    desktopPackage = JSON.parse(fs.readFileSync(packageFile, 'utf8'))
+  } catch (error) {
+    throw new Error(`Cannot read prepared Desktop package metadata ${packageFile}: ${error.message}`)
+  }
+  const main = desktopPackage?.main
+  if (typeof main !== 'string' || !main.trim()) {
+    throw new Error(`Prepared Desktop package has no main entry: ${packageFile}`)
+  }
+  const entry = path.resolve(desktopRoot, main)
+  const relativeEntry = path.relative(desktopRoot, entry)
+  if (!relativeEntry || relativeEntry === '..' || relativeEntry.startsWith(`..${path.sep}`) || path.isAbsolute(relativeEntry)) {
+    throw new Error(`Prepared Desktop main entry must be inside ${desktopRoot}: ${main}`)
+  }
+  if (!fs.existsSync(entry) || !fs.statSync(entry).isFile()) {
+    throw new Error(`Prepared Desktop main entry is missing or not a file: ${entry}`)
+  }
+  return entry
+}
+
+function assertStandaloneWebArtifacts (webRoot) {
+  const runtime = {
+    checker: path.join(webRoot, 'npm', 'anubis-web.js'),
+    manifest: path.join(webRoot, 'dist', 'asset-manifest.json'),
+    index: path.join(webRoot, 'dist', 'views', 'index.pug'),
+    assets: path.join(webRoot, 'dist', 'assets')
+  }
+  const missing = [runtime.checker, runtime.manifest, runtime.index].filter(filename => !fs.existsSync(filename))
+  if (!fs.existsSync(runtime.assets) || !fs.statSync(runtime.assets).isDirectory()) {
+    missing.push(runtime.assets)
+  }
+  if (missing.length) {
+    throw new Error(`Standalone Web source output is incomplete; missing: ${missing.join(', ')}`)
+  }
+  return runtime
 }
 
 function expectedPackage (packageJson, packageName) {
@@ -767,14 +806,12 @@ async function runSuite (options, {
     }
     const clients = []
     if (options.runMode !== 'web') {
-      if (!fs.existsSync(path.join(sourceRoot, 'work', 'app', 'app.js'))) {
-        throw new Error('Desktop source output is missing; run the install command first')
-      }
+      const desktopEntry = resolveDesktopEntry(sourceRoot)
       const electron = require(path.join(sourceRoot, 'node_modules', 'electron'))
       if (typeof electron !== 'string' || !fs.existsSync(electron)) {
         throw new Error('Desktop Electron is not installed; run the install command first')
       }
-      const child = trackChild(spawnProcess(electron, [path.join(sourceRoot, 'work', 'app', 'app.js')], {
+      const child = trackChild(spawnProcess(electron, [desktopEntry], {
         cwd: sourceRoot,
         env: clientEnv,
         stdio: 'inherit',
@@ -783,9 +820,7 @@ async function runSuite (options, {
       clients.push(child)
     }
     if (options.runMode !== 'desktop') {
-      if (!fs.existsSync(path.join(paths.web, 'dist', 'assets', 'views', 'asset-manifest.json'))) {
-        throw new Error('Standalone Web source output is missing; run the install command first')
-      }
+      assertStandaloneWebArtifacts(paths.web)
       const child = trackChild(spawnProcess(process.execPath, [path.join(paths.web, 'scripts', 'start-managed.js')], {
         cwd: paths.web,
         env: webEnv,

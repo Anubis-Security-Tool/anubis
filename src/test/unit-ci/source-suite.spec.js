@@ -52,6 +52,15 @@ function writeJson (filename, value) {
   fs.writeFileSync(filename, JSON.stringify(value, null, 2))
 }
 
+function writeWebRuntimeFixture (webRoot) {
+  fs.mkdirSync(path.join(webRoot, 'dist', 'assets'), { recursive: true })
+  fs.mkdirSync(path.join(webRoot, 'dist', 'views'), { recursive: true })
+  fs.writeFileSync(path.join(webRoot, 'dist', 'asset-manifest.json'), '{}')
+  fs.writeFileSync(path.join(webRoot, 'dist', 'views', 'index.pug'), '')
+  fs.mkdirSync(path.join(webRoot, 'npm'), { recursive: true })
+  fs.writeFileSync(path.join(webRoot, 'npm', 'anubis-web.js'), '')
+}
+
 function fakeChild (pid) {
   const child = new EventEmitter()
   child.exitCode = null
@@ -235,6 +244,8 @@ describe('source suite bootstrap', () => {
         if (slug === 'anubis-web') {
           fs.mkdirSync(path.join(checkout, 'scripts'), { recursive: true })
           fs.writeFileSync(path.join(checkout, 'scripts', 'install-source.js'), '')
+          fs.mkdirSync(path.join(checkout, 'npm'), { recursive: true })
+          fs.writeFileSync(path.join(checkout, 'npm', 'anubis-web.js'), '')
         }
       }
       if (command === 'git' && args.includes('status')) return { stdout: '' }
@@ -244,8 +255,13 @@ describe('source suite bootstrap', () => {
         const installedPackage = JSON.parse(fs.readFileSync(path.join(options.cwd, 'package.json'), 'utf8'))
         assert.equal(installedPackage.dependencies['@ai-security-tool/electerm-react'], undefined)
         assert.equal(installedPackage.devDependencies['@ai-security-tool/electerm-react'], '5.7.6')
-        fs.mkdirSync(path.join(options.cwd, 'dist', 'assets', 'views'), { recursive: true })
-        fs.writeFileSync(path.join(options.cwd, 'dist', 'assets', 'views', 'asset-manifest.json'), '{}')
+      }
+      if (command === process.execPath && args[1] === '--check' &&
+        args[0] === path.join(workspace, 'components', 'web', 'npm', 'anubis-web.js')) {
+        assert.ok(fs.existsSync(path.join(options.cwd, 'dist', 'asset-manifest.json')))
+        assert.ok(fs.existsSync(path.join(options.cwd, 'dist', 'views', 'index.pug')))
+        assert.ok(fs.statSync(path.join(options.cwd, 'dist', 'assets')).isDirectory())
+        assert.equal(fs.existsSync(path.join(options.cwd, 'dist', 'assets', 'views', 'asset-manifest.json')), false)
       }
       return { stdout: '' }
     }
@@ -270,6 +286,7 @@ describe('source suite bootstrap', () => {
           name: '@ai-security-tool/anubis-browser-assets',
           version: '5.7.6'
         })
+        writeWebRuntimeFixture(web)
       }
       if (args[0] === 'install') {
         writeJson(path.join(sourceRoot, 'node_modules', '@ai-security-tool', 'resource', 'package.json'), {
@@ -283,6 +300,7 @@ describe('source suite bootstrap', () => {
       }
       if (args[0] === 'run' && args[1] === 'b') {
         fs.mkdirSync(path.join(sourceRoot, 'work', 'app'), { recursive: true })
+        writeJson(path.join(sourceRoot, 'work', 'app', 'package.json'), { main: 'app.js' })
         fs.writeFileSync(path.join(sourceRoot, 'work', 'app', 'app.js'), '')
       }
       return { stdout: '' }
@@ -333,6 +351,9 @@ describe('source suite bootstrap', () => {
       assert.deepEqual(result.checkouts && Object.keys(result.checkouts), suite.defaultComponents)
       assert.ok(calls.run.some(call => call.command === process.execPath && call.args[0].endsWith('install-source.js') &&
         call.args.includes('--renderer-package') && call.args.includes('--sdk-package') && call.args.includes('--resource-package')))
+      assert.ok(calls.run.some(call => call.command === process.execPath &&
+        call.args[0] === path.join(workspace, 'components', 'web', 'npm', 'anubis-web.js') &&
+        call.args[1] === '--check'))
       assert.ok(calls.npm.some(call => call.args[0] === 'run' && call.args[1] === 'stage-browser-assets'))
       const resourceCi = calls.npm.find(call => call.args[0] === 'ci' && call.options.cwd === path.join(workspace, 'components', 'resource'))
       assert.ok(resourceCi, 'Resource dev dependencies must be installed with npm ci')
@@ -360,8 +381,7 @@ describe('source suite bootstrap', () => {
         const slug = args[args.length - 2].split('/').pop()
         fs.mkdirSync(checkout, { recursive: true })
         if (slug === 'anubis-web') {
-          fs.mkdirSync(path.join(checkout, 'dist', 'assets', 'views'), { recursive: true })
-          fs.writeFileSync(path.join(checkout, 'dist', 'assets', 'views', 'asset-manifest.json'), '{}')
+          writeWebRuntimeFixture(checkout)
           fs.mkdirSync(path.join(checkout, 'scripts'), { recursive: true })
           fs.writeFileSync(path.join(checkout, 'scripts', 'start-managed.js'), '')
         }
@@ -435,6 +455,7 @@ describe('source suite bootstrap', () => {
     const calls = []
     fs.mkdirSync(path.join(sourceRoot, 'work', 'app'), { recursive: true })
     fs.mkdirSync(path.join(sourceRoot, 'node_modules', 'electron'), { recursive: true })
+    writeJson(path.join(sourceRoot, 'work', 'app', 'package.json'), { main: 'app.js' })
     fs.writeFileSync(path.join(sourceRoot, 'work', 'app', 'app.js'), '')
     fs.writeFileSync(electronBinary, '')
     fs.writeFileSync(path.join(sourceRoot, 'node_modules', 'electron', 'index.js'), `module.exports = ${JSON.stringify(electronBinary)}\n`)
@@ -498,8 +519,7 @@ describe('source suite bootstrap', () => {
         const slug = args[args.length - 2].split('/').pop()
         fs.mkdirSync(checkout, { recursive: true })
         if (slug === 'anubis-web') {
-          fs.mkdirSync(path.join(checkout, 'dist', 'assets', 'views'), { recursive: true })
-          fs.writeFileSync(path.join(checkout, 'dist', 'assets', 'views', 'asset-manifest.json'), '{}')
+          writeWebRuntimeFixture(checkout)
           fs.mkdirSync(path.join(checkout, 'scripts'), { recursive: true })
           fs.writeFileSync(path.join(checkout, 'scripts', 'start-managed.js'), '')
         }

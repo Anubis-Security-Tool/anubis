@@ -123,6 +123,54 @@ function verifySourceAsar (root, runtime) {
   for (const file of sdkPack.files) assert(get(path.join('node_modules', sdkPack.name, file)).equals(fs.readFileSync(path.join(sdk, file))))
 }
 
+function verifyRuntimeInventory (runtime, rows) {
+  const expected = new Set([
+    'anubis.exe', 'anubis-host.exe', 'chrome_100_percent.pak', 'chrome_200_percent.pak',
+    'd3dcompiler_47.dll', 'dxcompiler.dll', 'dxil.dll', 'ffmpeg.dll', 'icudtl.dat',
+    'LICENSE.electron.txt', 'LICENSES.chromium.html', 'locales/en-US.pak',
+    'resources.pak', 'resources/app.asar', 'resources/elevate.exe',
+    'snapshot_blob.bin', 'v8_context_snapshot.bin', 'vk_swiftshader_icd.json',
+    'vk_swiftshader.dll', 'vulkan-1.dll'
+  ])
+  const actual = new Map(rows.map(row => [path.relative(runtime, row.path).split(path.sep).join('/'), row]))
+  assert.equal(actual.size, rows.length, 'Duplicate Windows runtime inventory member')
+  const asar = require('@electron/asar')
+  const archive = path.join(runtime, 'resources/app.asar')
+  asar.uncache(archive)
+  const unpacked = new Set()
+  for (const filename of asar.listPackage(archive)) {
+    const relative = filename.replace(/\\/g, '/').replace(/^\/+/, '')
+    const info = asar.statFile(archive, path.normalize(relative), false)
+    if (info.unpacked && !info.files) {
+      assert(!info.link && relative.split('/').every(part => part && part !== '.' && part !== '..'), 'Unsafe unpacked ASAR member')
+      unpacked.add(relative)
+      expected.add(`resources/app.asar.unpacked/${relative}`)
+    }
+  }
+  for (const relative of [
+    'node_modules/node-pty/build/Release/conpty.node',
+    'node_modules/node-pty/build/Release/conpty_console_list.node',
+    'node_modules/@serialport/bindings-cpp/build/Release/bindings.node'
+  ]) assert(unpacked.has(relative), `Missing unpacked Windows native module: ${relative}`)
+  for (const file of ['conpty.dll', 'OpenConsole.exe']) {
+    expected.add(`resources/app.asar.unpacked/node_modules/node-pty/build/Release/conpty/${file}`)
+  }
+  const prefix = 'third-party-go-notices/'
+  expected.add(prefix + 'manifest.json')
+  const notices = JSON.parse(fs.readFileSync(path.join(runtime, prefix, 'manifest.json'), 'utf8'))
+  assert.equal(notices.schemaVersion, 1)
+  assert(Array.isArray(notices.files) && notices.files.length > 0, 'Missing original Go notices')
+  assert(notices.files.some(record => record.source === 'go-toolchain'), 'Missing compiling Go toolchain notices')
+  for (const record of notices.files) {
+    assert(/^[a-f0-9]{64}$/.test(record.sha256) && record.relative === `${record.sha256}.txt`, 'Unsafe original Go notice path')
+    const relative = prefix + record.relative
+    expected.add(relative)
+    const original = actual.get(relative)
+    assert(original && original.bytes === record.bytes && original.sha256 === record.sha256, `Changed or missing original Go notice: ${relative}`)
+  }
+  assert.deepEqual([...actual.keys()].sort(), [...expected].sort(), 'Windows runtime inventory must match the reviewed Electron layout, actual unpacked ASAR and original Go notices')
+}
+
 async function main () {
   assert(process.platform === 'win32' && process.arch === 'x64', 'Native Windows x64 release runner required')
   assert(!process.env.CSC_LINK, 'Signed NSIS needs a separately reviewed signed-overlay verification path')
@@ -197,8 +245,8 @@ async function main () {
         runtimeFiles: runtimeInventory
       }, null, 2), { flag: 'wx' })
       console.log(`NSIS runtime inventory: ${runtimeRows.length} files`)
-      assert(runtimeRows.length >= 100 && runtimeRows.length <= 160, `Unexpected Windows runtime file count: ${runtimeRows.length}; see runtime-inventory.json`)
       assert(!runtimeRows.some(row => path.basename(row.path) === 'anubis-machine-install.json'))
+      verifyRuntimeInventory(runtime, runtimeRows)
       verifySourceAsar(root, runtime)
       await checkMembers(archivePath)
       fs.writeFileSync(path.join(evidence, 'archive-gate.json'), JSON.stringify({ archive, defines, commands, runtimeRows }, null, 2), { flag: 'wx' })
@@ -255,4 +303,4 @@ async function main () {
 }
 
 if (require.main === module) main().catch(error => { console.error(error); process.exit(1) })
-module.exports = { verifyBlockmap, streamMember, verifyCrc, verifyEmbedded, main }
+module.exports = { verifyBlockmap, streamMember, verifyCrc, verifyEmbedded, verifyRuntimeInventory, main }

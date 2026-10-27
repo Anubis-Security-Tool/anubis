@@ -581,6 +581,15 @@ the pinned compiler, icon and helper bytes, archived runtime members, final PE
 resources, native NSIS CRCs, exact embedded payloads and every external blockmap
 chunk. Proof JSON files are uploaded as `win-nsis-provenance`.
 
+The runtime file set must exactly match the reviewed Electron layout, every
+actual unpacked ASAR member, the explicitly copied ConPTY executables and the
+byte-checked original Go-notice index. A fixed file-count range is not used as
+a substitute for that contract; every resulting member must still pass both
+archive and final-installer stream hashing. Failed builds retain only the
+pre-verification inventory as `win-nsis-build-diagnostics`, not a success receipt.
+CLI failures terminate nonzero even when the builder's cleanup hook would
+otherwise reset `process.exitCode`.
+
 This path currently supports unsigned output only. `CSC_LINK` causes an explicit
 failure until signed-overlay verification is separately reviewed; it does not
 silently disable requested signing or bypass verification. A successful build
