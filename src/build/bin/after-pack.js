@@ -1,8 +1,13 @@
 const { join } = require('path')
 const { copyWindowsTerminalRuntime } = require('./windows-terminal-runtime')
 const { copyWindowsMachineHost } = require('./windows-machine-host')
+const { verifyPackagedNotices } = require('./third-party-notices')
 
 module.exports = async function afterPack (context) {
+  const resources = context.electronPlatformName === 'darwin'
+    ? join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`, 'Contents', 'Resources')
+    : join(context.appOutDir, 'resources')
+  verifyPackagedNotices(join(resources, 'app.asar'), context.packager.info.appDir)
   if (context.electronPlatformName !== 'win32') {
     return
   }

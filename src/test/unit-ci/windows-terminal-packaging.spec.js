@@ -5,6 +5,8 @@ const { tmpdir } = require('os')
 const { join } = require('path')
 const { Arch } = require('builder-util')
 const machineHost = require('../../build/bin/windows-machine-host')
+const notices = require('../../build/bin/third-party-notices')
+mock.method(notices, 'verifyPackagedNotices', () => {})
 // Native compilation has its own contract tests; ConPTY fixtures are not Go builds.
 const hostBuild = mock.method(machineHost, 'copyWindowsMachineHost', () => {})
 const afterPack = require('../../build/bin/after-pack')
@@ -55,6 +57,7 @@ test('fails the build when a runtime binary is empty', async t => {
 })
 
 test('leaves Linux and macOS packages unchanged', async () => {
-  await afterPack({ electronPlatformName: 'linux' })
-  await afterPack({ electronPlatformName: 'darwin' })
+  const context = { appOutDir: 'fixture', packager: { info: { appDir: 'fixture' }, appInfo: { productFilename: 'Fixture' } } }
+  await afterPack({ ...context, electronPlatformName: 'linux' })
+  await afterPack({ ...context, electronPlatformName: 'darwin' })
 })

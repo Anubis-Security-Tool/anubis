@@ -13,6 +13,7 @@ function prepare (failure) {
   const calls = []
   const writes = new Map()
   const shellCommands = []
+  const events = []
   const fixtures = {
     '../../../package.json': JSON.parse(fs.readFileSync(path.join(root, 'package.json'))),
     os: { platform: () => 'linux' },
@@ -20,22 +21,29 @@ function prepare (failure) {
     child_process: {
       execFileSync (file, args, options) {
         calls.push({ file, args: Array.from(args), options })
+        events.push(args[1])
         if (failure) throw failure
         return Buffer.from('controlled yarn lock output\n')
       }
     },
     shelljs: {
       mkdir () {},
-      rm () {},
+      rm (...args) { events.push(args.at(-1)) },
       echo () {},
       cp () {},
       exec (command) {
         shellCommands.push(command)
+        events.push('install')
         return { code: 0 }
       }
     },
     fs: { writeFileSync: (file, bytes) => writes.set(file, bytes) },
     './browser-assets': { stageBrowserAssets () {} },
+    './third-party-notices': {
+      captureBuildNotices () { events.push('build notices') },
+      captureRuntimeNotices () { events.push('runtime notices') },
+      verifyNotices () { events.push('verify notices') }
+    },
     './clean-empty-folders': { main () {} }
   }
   const requireFixture = name => {
@@ -51,7 +59,7 @@ function prepare (failure) {
     __dirname: path.dirname(script),
     process: { cwd: () => cwd, execPath: process.execPath, env: {} }
   }, { filename: script })
-  return { cwd, yarn, calls, writes, shellCommands }
+  return { cwd, yarn, calls, writes, shellCommands, events }
 }
 
 test('package preparation declares and genuinely locks exact local Yarn', () => {
@@ -67,7 +75,11 @@ test('package preparation declares and genuinely locks exact local Yarn', () => 
 })
 
 test('actual preparation uses local Node/Yarn arguments without global Yarn or shell quoting', () => {
-  const { cwd, yarn, calls, writes, shellCommands } = prepare()
+  const { cwd, yarn, calls, writes, shellCommands, events } = prepare()
+  assert(events.indexOf('build notices') < events.indexOf('work/app/assets/js/*.txt'))
+  assert(events.indexOf('runtime notices') > events.indexOf('install'))
+  assert(events.indexOf('runtime notices') < events.indexOf('work/app/node_modules/.bin'))
+  assert(events.indexOf('verify notices') > events.indexOf('autoclean'))
   assert.deepEqual(shellCommands, ['npm i --omit=dev --legacy-peer-deps'])
   assert.equal(calls.length, 2)
   assert(calls.every(call => call.file === process.execPath && call.options.cwd === path.join(cwd, 'work', 'app')))
@@ -101,4 +113,5 @@ test('release requires fresh source smoke parallel to native builds without inhe
     assert.equal(release.jobs[name].needs, 'check')
   }
   assert.doesNotMatch(JSON.stringify(protocol.jobs['source-suite-smoke']), /secrets\./)
+  assert.doesNotMatch(JSON.stringify(protocol.jobs['source-suite-smoke'].env), /\$\{\{\s*runner\./)
 })

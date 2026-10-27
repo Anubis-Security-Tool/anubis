@@ -7,6 +7,17 @@ headless machine engine. The GUI runs as the actual interactive Windows user;
 closing it does not stop the service. There is no interactive SYSTEM GUI,
 scheduled task, tray lifetime dependency, or PowerShell-created service.
 
+Packaging snapshots original project legal files, installed build/frontend and
+runtime dependency notices (including nested/vendor licenses), and generated
+bundle license texts **before** dependency/autoclean pruning. Byte-identical
+copies live in `app.asar/third-party-notices/texts`; `manifest.json` maps their
+original paths to sizes and SHA-256 hashes, and explicitly lists README fallbacks
+where an installed package supplied no recognized standalone notice. The index
+records originals, not newly inferred license grants or a legal-completeness
+claim for an upstream package missing its notices. Preparation and every
+platform's final ASAR gate reject missing or changed retained bytes. These files
+are part of the application, not additional release formats.
+
 ## Installation and explicit authorization
 
 Setup is silent after UAC, never launches the GUI, and returns zero only after

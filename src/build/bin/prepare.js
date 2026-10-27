@@ -45,6 +45,8 @@ mkdir('-p', dir)
 mkdir('-p', 'dist/latest')
 cp('-r', 'src/app', 'work/')
 cp('src/common/brand.config.js', 'work/app/common/brand.config.js')
+const notices = require('./third-party-notices')
+notices.captureBuildNotices(cwd)
 rm('-rf', 'work/app/user-config.json')
 rm('-rf', 'work/app/localstorage.json')
 rm('-rf', 'work/app/nohup.out')
@@ -61,6 +63,7 @@ require('fs').writeFileSync(
 
 cp('.npmrc', 'work/app/.npmrc')
 runChecked('npm i --omit=dev --legacy-peer-deps')
+notices.captureRuntimeNotices(cwd)
 // yarn autoclean removes dependency folders named assets/images. Stage the
 // complete browser tree outside node_modules before that cleanup runs.
 require('./browser-assets').stageBrowserAssets({
@@ -143,6 +146,7 @@ if (process.env.ANUBIS_SDK_SOURCE_DIR) {
     resolve(process.env.ANUBIS_SDK_SOURCE_DIR)
   )
 }
+notices.verifyNotices(cwd)
 
 const endTime = +new Date()
 echo(`done pack prepare in ${(endTime - timeStart) / 1000} s`)

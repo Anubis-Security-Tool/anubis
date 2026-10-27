@@ -34,6 +34,9 @@ on:
       - 'src/app/lib/fs.js'
       - 'src/build/bin/prepare.js'
       - 'src/test/unit-ci/packaging-yarn.spec.js'
+      - 'src/build/bin/third-party-notices.js'
+      - 'src/build/bin/after-pack.js'
+      - 'src/test/unit-ci/packaging-notices.spec.js'
       - 'src/app/common/*.mjs'
       - 'src/client/common/*vv*.js'
       - 'src/test/unit-ci/managed-browser*.spec.js'
@@ -60,6 +63,9 @@ on:
       - 'src/app/lib/fs.js'
       - 'src/build/bin/prepare.js'
       - 'src/test/unit-ci/packaging-yarn.spec.js'
+      - 'src/build/bin/third-party-notices.js'
+      - 'src/build/bin/after-pack.js'
+      - 'src/test/unit-ci/packaging-notices.spec.js'
       - 'src/app/common/*.mjs'
       - 'src/client/common/*vv*.js'
       - 'src/test/unit-ci/managed-browser*.spec.js'
@@ -76,12 +82,9 @@ jobs:
     timeout-minutes: 35
     env:
       NPM_REGISTRY_URL: https://npm.anubis.locker/
-      npm_config_cache: ${{ runner.temp }}/anubis-source-suite-npm-cache
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
       ANUBIS_MANAGED_ACCESS: '0'
       ANUBIS_MANAGED_URL: ''
-      ANUBIS_SOURCE_SUITE_SMOKE_WORKSPACE: ${{ runner.temp }}/anubis-source-suite
-      ANUBIS_SOURCE_SUITE_SMOKE_RECEIPT: ${{ runner.temp }}/anubis-source-suite-smoke.json
     steps:
       - uses: actions/checkout@v4
         with:
@@ -92,6 +95,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Configure fresh runner-owned paths
+        run: |
+          echo "npm_config_cache=$RUNNER_TEMP/anubis-source-suite-npm-cache" >> "$GITHUB_ENV"
+          echo "ANUBIS_SOURCE_SUITE_SMOKE_WORKSPACE=$RUNNER_TEMP/anubis-source-suite" >> "$GITHUB_ENV"
+          echo "ANUBIS_SOURCE_SUITE_SMOKE_RECEIPT=$RUNNER_TEMP/anubis-source-suite-smoke.json" >> "$GITHUB_ENV"
       - name: Install source-build prerequisites
         run: |
           sudo apt-get update -qq
@@ -137,6 +145,7 @@ jobs:
           src/test/unit-ci/local-terminal-startup.spec.js
           src/test/unit-ci/fs-shell-lifecycle.spec.js
           src/test/unit-ci/packaging-yarn.spec.js
+          src/test/unit-ci/packaging-notices.spec.js
           src/test/unit-ci/managed-browser.spec.js
           src/test/unit-ci/managed-browser-rpc.spec.js
           src/test/unit-ci/managed-browser-packaging.spec.js
