@@ -4,6 +4,7 @@ const assert = require('node:assert/strict')
 const crypto = require('node:crypto')
 const net = require('node:net')
 const { spawn, execFileSync } = require('node:child_process')
+const { once } = require('node:events')
 const { setTimeout: delay } = require('node:timers/promises')
 const suite = require('../../../scripts/source-suite')
 
@@ -81,13 +82,33 @@ async function waitForWeb (child, url) {
   throw new Error('Standalone Web did not become ready')
 }
 
+function findOwnedSyncChild (runnerPid, workspace) {
+  const expected = path.join(workspace, 'components/sync-server-node/server.js')
+  const children = fs.readFileSync(`/proc/${runnerPid}/task/${runnerPid}/children`, 'utf8').trim()
+  for (const value of children.split(/\s+/).filter(Boolean)) {
+    const pid = Number(value)
+    assert(Number.isSafeInteger(pid) && pid > 1)
+    const args = fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').split('\0')
+    if (args[0] !== process.execPath || args[1] !== expected) continue
+    const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8')
+    const fields = stat.slice(stat.lastIndexOf(')') + 2).split(' ')
+    assert.equal(Number(fields[1]), runnerPid, 'Sync process is not our direct child')
+    assert.equal(Number(fields[2]), runnerPid, 'Sync process left our owned group')
+    assert.equal(Number(fields[3]), runnerPid, 'Sync process left our owned session')
+    return pid
+  }
+  throw new Error('Unable to identify the exact owned local Sync child')
+}
+
 async function main () {
   assert.equal(process.platform, 'linux', 'Fresh source smoke requires an isolated Linux runner')
   const workspace = process.env.ANUBIS_SOURCE_SUITE_SMOKE_WORKSPACE
   const receiptFile = process.env.ANUBIS_SOURCE_SUITE_SMOKE_RECEIPT
   assert(workspace && path.isAbsolute(workspace) && receiptFile && path.isAbsolute(receiptFile))
   assert(!fs.existsSync(receiptFile), 'Refusing to overwrite an existing smoke receipt')
-  const config = JSON.parse(fs.readFileSync(path.join(workspace, 'config/local-sync.json')))
+  const configFile = path.join(workspace, 'config/local-sync.json')
+  const configHash = digest(fs.readFileSync(configFile))
+  const config = JSON.parse(fs.readFileSync(configFile))
   suite.validateLocalSyncConfig(config)
   const version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'))).version
   const desktopFiles = ['app.js', ...[
@@ -106,7 +127,7 @@ async function main () {
   if (process.env.GITHUB_ACTIONS === 'true') {
     for (const value of [password, secret, config.jwtSecret, config.userId]) console.log(`::add-mask::${value}`)
   }
-  const child = spawn(process.execPath, [
+  const spawnSuite = () => spawn(process.execPath, [
     'scripts/source-suite.js', 'run', '--web-only', '--workspace', workspace
   ], {
     cwd: root,
@@ -123,6 +144,7 @@ async function main () {
       ANUBIS_MANAGED_URL: ''
     }
   })
+  const child = spawnSuite()
   let spawnError
   child.once('error', error => { spawnError = error })
   const interrupt = () => child.kill('SIGTERM')
@@ -134,6 +156,7 @@ async function main () {
     await waitForWeb(child, 'http://127.0.0.1:18745/')
     const unauthorized = await fetch('http://127.0.0.1:18745/api/get-constants', { redirect: 'error', signal: AbortSignal.timeout(5000) })
     assert.equal(unauthorized.status, 401)
+    await unauthorized.body?.cancel()
     const login = await fetch('http://127.0.0.1:18745/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -148,6 +171,7 @@ async function main () {
       headers: { token }, redirect: 'error', signal: AbortSignal.timeout(5000)
     })
     assert.equal(authenticated.status, 200)
+    await authenticated.body?.cancel()
     const data = path.join(workspace, 'data/sync')
     const before = snapshot(data)
     await suite.waitForLocalSync(child, config)
@@ -155,6 +179,7 @@ async function main () {
       method: 'POST', redirect: 'error', signal: AbortSignal.timeout(5000)
     })
     assert.equal(denied.status, 401)
+    await denied.body?.cancel()
     assert.deepEqual(snapshot(data), before, 'Sync readiness requests modified stored data')
   } finally {
     process.removeListener('SIGINT', interrupt)
@@ -164,6 +189,28 @@ async function main () {
   assert.equal(child.exitCode, 0, 'Source-suite CLI did not stop gracefully')
   await assertPortFree(config.port)
   await assertPortFree(18745)
+  const failed = spawnSuite()
+  const interruptFailure = () => failed.kill('SIGTERM')
+  process.once('SIGINT', interruptFailure)
+  process.once('SIGTERM', interruptFailure)
+  try {
+    await suite.waitForLocalSync(failed, config, { timeoutMs: 30000 })
+    await waitForWeb(failed, 'http://127.0.0.1:18745/')
+    const syncPid = findOwnedSyncChild(failed.pid, workspace)
+    const exit = once(failed, 'exit', { signal: AbortSignal.timeout(10000) })
+    process.kill(syncPid, 'SIGTERM')
+    const [code, signal] = await exit
+    assert.equal(signal, null, 'Source-suite runner was externally terminated')
+    assert(Number.isInteger(code) && code > 0, 'Mandatory Sync failure must fail the CLI')
+    assert(!groupAlive(failed.pid), 'Mandatory Sync failure left owned client processes running')
+  } finally {
+    process.removeListener('SIGINT', interruptFailure)
+    process.removeListener('SIGTERM', interruptFailure)
+    if (failed.pid) await stopOwnedGroup(failed)
+  }
+  await assertPortFree(config.port)
+  await assertPortFree(18745)
+  assert.equal(digest(fs.readFileSync(configFile)), configHash, 'Runtime changed the retained local Sync configuration')
   const receipt = {
     completed: true,
     sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
@@ -176,6 +223,8 @@ async function main () {
     authenticatedNonWritingSyncReady: true,
     unauthenticatedSyncRejected: true,
     ownedProcessGroupStopped: true,
+    mandatorySyncFailureStopsClientsAndFailsCli: true,
+    retainedLocalSyncConfigUnchanged: true,
     loopbackPortsReleased: true,
     managedEnrollmentEnabled: false,
     productionNetworkTargetsTested: false,
