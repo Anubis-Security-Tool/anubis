@@ -25,6 +25,8 @@ on:
       - 'src/build/vite/dev-server.js'
       - 'src/test/unit-ci/native-renderer-bootstrap.spec.js'
       - 'src/test/unit-ci/local-terminal-startup.spec.js'
+      - 'src/test/unit-ci/fs-shell-lifecycle.spec.js'
+      - 'src/app/lib/fs.js'
       - 'src/app/common/*.mjs'
       - 'src/client/common/*vv*.js'
       - 'src/test/unit-ci/managed-browser*.spec.js'
@@ -47,6 +49,8 @@ on:
       - 'src/build/vite/dev-server.js'
       - 'src/test/unit-ci/native-renderer-bootstrap.spec.js'
       - 'src/test/unit-ci/local-terminal-startup.spec.js'
+      - 'src/test/unit-ci/fs-shell-lifecycle.spec.js'
+      - 'src/app/lib/fs.js'
       - 'src/app/common/*.mjs'
       - 'src/client/common/*vv*.js'
       - 'src/test/unit-ci/managed-browser*.spec.js'
@@ -123,6 +127,7 @@ jobs:
           src/test/unit-ci/web-client-package.spec.js
           src/test/unit-ci/native-renderer-bootstrap.spec.js
           src/test/unit-ci/local-terminal-startup.spec.js
+          src/test/unit-ci/fs-shell-lifecycle.spec.js
           src/test/unit-ci/managed-browser.spec.js
           src/test/unit-ci/managed-browser-rpc.spec.js
           src/test/unit-ci/managed-browser-packaging.spec.js
