@@ -1,3 +1,5 @@
 native/windows-host/*.go text eol=lf
 native/windows-host/go.mod text eol=lf
 native/windows-host/go.sum text eol=lf
+src/build/bin/nsis/data-only-uninstaller.cjs -text
+src/build/bin/nsis/inspect-pe-resources.cjs -text
