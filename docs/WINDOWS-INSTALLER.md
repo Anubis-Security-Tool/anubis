@@ -590,6 +590,11 @@ pre-verification inventory as `win-nsis-build-diagnostics`, not a success receip
 CLI failures terminate nonzero even when the builder's cleanup hook would
 otherwise reset `process.exitCode`.
 
+The SDK check binds the staged metadata byte-for-byte to its pinned source and
+compares packaged metadata with the actual pinned builder's dependency transform
+(which removes fields such as `bugs` and scripts). SDK code and the original
+`LICENSE` must still match their pinned source bytes exactly.
+
 This path currently supports unsigned output only. `CSC_LINK` causes an explicit
 failure until signed-overlay verification is separately reviewed; it does not
 silently disable requested signing or bypass verification. A successful build

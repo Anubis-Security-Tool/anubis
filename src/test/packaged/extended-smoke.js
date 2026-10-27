@@ -95,7 +95,8 @@ test('packaged live Spice and private GitHub sync', {
   })
   await page.waitForFunction(() => window.store?.configLoaded)
   assert.equal(await page.evaluate(() => window.et.version), process.env.ANUBIS_SMOKE_VERSION)
-  const sidebar = page.locator('.control-icon-wrap.active[title="Bookmarks"]')
+  const sidebar = page.getByRole('navigation', { name: 'Application sections', exact: true })
+    .getByRole('button', { name: 'Bookmarks', exact: true }).and(page.locator('[aria-current="page"]'))
   if (await sidebar.isVisible()) await sidebar.click()
   await t.test('Spice renders the real guest framebuffer and delivers keyboard and pointer events', async () => {
     forward = await startSshForward({
