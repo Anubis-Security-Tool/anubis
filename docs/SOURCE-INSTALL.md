@@ -72,7 +72,7 @@ The secret is also stored in the clients' local settings, so protect the entire 
 - **Desktop** is built by this repository's `npm run b` pipeline. Its bundled SSH, SFTP/FTP, Telnet, serial, RDP, VNC, SPICE, SSH tunnels, MCP and sync client are integrated dependencies, not dynamically loaded plugins.
 - **Standalone Web** is a separately versioned Node.js runtime. The source bootstrap passes locally packed, version-checked renderer, managed-access SDK and resource tarballs to the Web source installer; the installer builds and validates the server/assets but does not start it.
 - **Managed access** requires an independently operated gateway and explicit administrator approval. Installing the client SDK is not gateway deployment, device enrollment or approval.
-- **Local Node Sync** is for private development on loopback. A remote operator needs a separately secured deployment, HTTPS, authentication and an explicit network policy. Never bind this development service to `0.0.0.0`.
+- **Local Node Sync** is for private development on loopback. A remote operator needs a separately secured deployment, HTTPS, authentication and an explicit network policy. Never bind this development service to all network interfaces.
 - **Cloudflare Sync** is a separate provider requiring the operator's own Cloudflare account and D1 setup. The source bootstrap does not deploy it.
 - **Built-in SSH tunnels** are not the separate GPL-3.0 HTTP tunnel server. The historic GPL-3.0 `rdpjs` project is not the active Desktop RDP implementation.
 - **Browser Control** and six other PRO menu entries are placeholders, not remote Chrome automation or installable extensions.
