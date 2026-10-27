@@ -649,15 +649,15 @@ function observeChild (child) {
 function waitForChildExit (child, timeoutMs) {
   if (childHasExited(child)) return Promise.resolve(true)
   return new Promise(resolve => {
-    let timer
+    const state = { timer: null, onExit: null }
     const finish = exited => {
-      clearTimeout(timer)
-      child.removeListener('exit', onExit)
+      clearTimeout(state.timer)
+      child.removeListener('exit', state.onExit)
       resolve(exited || childHasExited(child))
     }
-    const onExit = () => finish(true)
-    child.once('exit', onExit)
-    timer = setTimeout(() => finish(false), timeoutMs)
+    state.onExit = () => finish(true)
+    state.timer = setTimeout(() => finish(false), timeoutMs)
+    child.once('exit', state.onExit)
     if (childHasExited(child)) finish(true)
   })
 }
@@ -728,6 +728,7 @@ async function runSuite (options, {
   process.once('SIGINT', interrupt)
   process.once('SIGTERM', interrupt)
   let runError
+  let cleanupError
   try {
     const sync = trackChild(spawnProcess(process.execPath, [path.join(paths['sync-server-node'], 'server.js')], {
       cwd: paths['sync-server-node'],
@@ -817,11 +818,11 @@ async function runSuite (options, {
     if (failures.length) {
       const details = failures.map(result => result.reason?.message || String(result.reason)).join('; ')
       const cause = runError ? `; original error: ${runError.message}` : ''
-      const cleanupError = new Error(`Failed to stop source-suite child processes: ${details}${cause}`)
+      cleanupError = new Error(`Failed to stop source-suite child processes: ${details}${cause}`)
       if (runError) cleanupError.cause = runError
-      throw cleanupError
     }
   }
+  if (cleanupError) throw cleanupError
   if (runError) throw runError
   log.info('[anubis] Source suite stopped.')
 }
