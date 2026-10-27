@@ -5,7 +5,13 @@ desktop renderer and embedded browser builds. The notice collector validates
 their union against the actual Main lockfile before applying redistribution
 license/source gates. Development-only classification alone never exempts a
 bundled dependency; original available notices and metadata are retained for
-build-only tools as well. and application distribution
+build-only tools as well.
+
+The shared release driver clears the generated work tree before compilation, then
+runs normal runtime preparation with the freshly built browser assets and pinned
+SDK source before any platform packager runs.
+Source provenance is written only after preparation succeeds and the application
+entry point, main-process library and runtime package metadata exist.
 
 Builds and updates use `Anubis-Locker/anubis`, our npm registry and our VPS.
 The release workflow does not depend on a separate website repository and does

@@ -43,8 +43,19 @@ function copyTracked (from, destination, accept = () => true) {
   }
 }
 
-function run (cwd, script, args = []) {
-  execFileSync(process.execPath, [script, ...args], { cwd, env: process.env, stdio: 'inherit' })
+function run (cwd, script, args = [], env = process.env) {
+  execFileSync(process.execPath, [script, ...args], { cwd, env, stdio: 'inherit' })
+}
+
+function prepareReleaseApp (projectRoot, browserAssets, sdkSource) {
+  run(projectRoot, path.join(projectRoot, 'src/build/bin/prepare.js'), [], {
+    ...process.env,
+    ANUBIS_BROWSER_ASSETS_DIR: browserAssets,
+    ANUBIS_SDK_SOURCE_DIR: sdkSource
+  })
+  for (const relative of ['app.js', 'lib/create-app.js', 'package.json']) {
+    assert(fs.statSync(path.join(projectRoot, 'work/app', relative)).isFile(), relative)
+  }
 }
 
 function nativeViteConfig (projectRoot) {
@@ -64,6 +75,7 @@ async function build () {
   const version = read(path.join(root, 'package.json')).version
   const producer = path.join(root, '.release-build', 'browser')
   assert(!fs.existsSync(producer), 'A release producer must be fresh; do not silently reuse outputs')
+  run(root, path.join(__dirname, 'clean.js'))
   fs.mkdirSync(producer, { recursive: true })
   const web = path.join(root, '.release-inputs', 'web')
   copyTracked(web, producer, file => /^(?:LICENSE|NOTICE|THIRD-PARTY-LICENSES(?:\.md)?|README\.md)$/.test(file) ||
@@ -103,6 +115,7 @@ async function build () {
     version, _global: { version, siteName: 'Anubis-Security-Tool', isDev: false, cdn: '', tokenElecterm: '', defaultAIPreset: {} }
   })
   assert(html.includes(`basic-${version}.js`) && html.includes(`style-${version}.css`))
+  prepareReleaseApp(root, assets, path.join(root, '.release-inputs/sdk'))
   const receipt = {
     appCommit: git(root, ['rev-parse', 'HEAD']),
     version,
@@ -151,4 +164,4 @@ if (require.main === module) {
   } else throw new Error('Expected pins, verify or build')
 }
 
-module.exports = { pins, verify, copyTracked, stageSdk, nativeViteConfig }
+module.exports = { pins, verify, copyTracked, stageSdk, nativeViteConfig, prepareReleaseApp }

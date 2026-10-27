@@ -5,7 +5,7 @@ const path = require('node:path')
 const os = require('node:os')
 const zlib = require('node:zlib')
 const crypto = require('node:crypto')
-const { pins, stageSdk, nativeViteConfig } = require('../../build/bin/release-source-inputs')
+const { pins, stageSdk, nativeViteConfig, prepareReleaseApp } = require('../../build/bin/release-source-inputs')
 const { patchTarget, HELPER_SHA256 } = require('../../build/bin/nsis/release-support')
 const { verifyBlockmap } = require('../../build/bin/nsis/build-release')
 const { assembleWebClient } = require('../../build/bin/assemble-web-client')
@@ -45,6 +45,39 @@ test('locale navigation targets the real public package source and existing file
   const brand = require('../../common/brand.config')
   assert.equal(pack.languageRepo, 'https://github.com/Anubis-Security-Tool/anubis-packages/tree/main/locales')
   assert.equal(brand.repo.localesEdit, 'https://github.com/Anubis-Security-Tool/anubis-packages/edit/main/locales/dist/cjs')
+})
+
+test('release prepares the complete runtime with pinned browser and SDK sources before packaging', () => {
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'anubis-release-prepare-'))
+  try {
+    const script = path.join(temporary, 'src/build/bin/prepare.js')
+    fs.mkdirSync(path.dirname(script), { recursive: true })
+    fs.writeFileSync(script, `
+      const fs = require('node:fs')
+      fs.mkdirSync('work/app/lib', { recursive: true })
+      for (const file of ['app.js', 'lib/create-app.js', 'package.json']) fs.writeFileSync('work/app/' + file, '{}')
+      fs.writeFileSync('prepared.json', JSON.stringify({
+        browser: process.env.ANUBIS_BROWSER_ASSETS_DIR,
+        sdk: process.env.ANUBIS_SDK_SOURCE_DIR,
+        cwd: process.cwd()
+      }))
+    `)
+    const assets = path.join(temporary, 'fresh-browser')
+    const sdk = path.join(temporary, 'pinned-sdk')
+    prepareReleaseApp(temporary, assets, sdk)
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(temporary, 'prepared.json'))), {
+      browser: assets, sdk, cwd: temporary
+    })
+    const driver = fs.readFileSync(path.join(root, 'src/build/bin/release-source-inputs.js'), 'utf8')
+    assert(driver.includes("run(root, path.join(__dirname, 'clean.js'))"))
+    assert(driver.indexOf("run(root, path.join(__dirname, 'clean.js'))") < driver.indexOf("run(path.join(root, 'src/build/vite')"))
+    assert(driver.indexOf('prepareReleaseApp(root, assets,') < driver.indexOf("fs.writeFileSync(path.join(root, '.release-build/source-provenance.json')"))
+    fs.unlinkSync(path.join(temporary, 'work/app/app.js'))
+    fs.writeFileSync(script, '')
+    assert.throws(() => prepareReleaseApp(temporary, assets, sdk), { code: 'ENOENT' })
+    fs.writeFileSync(script, 'process.exit(37)')
+    assert.throws(() => prepareReleaseApp(temporary, assets, sdk), error => error.status === 37)
+  } finally { fs.rmSync(temporary, { recursive: true, force: true }) }
 })
 
 test('private NSIS patch removes every generated writer execution fallback and binds exact original', () => {
