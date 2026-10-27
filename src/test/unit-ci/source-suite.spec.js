@@ -52,6 +52,23 @@ function writeJson (filename, value) {
   fs.writeFileSync(filename, JSON.stringify(value, null, 2))
 }
 
+function fakeChild (pid) {
+  const child = new EventEmitter()
+  child.exitCode = null
+  child.signalCode = null
+  child.pid = pid
+  child.killSignals = []
+  child.kill = signal => {
+    child.killSignals.push(signal)
+    process.nextTick(() => {
+      child.signalCode = signal
+      child.emit('exit', null, signal)
+    })
+    return true
+  }
+  return child
+}
+
 describe('source suite bootstrap', () => {
   it('parses only supported commands and explicit optional components', () => {
     assert.equal(suite.parseArgs(['install', '--with', 'cloudflare-sync']).with[0], 'cloudflare-sync')
@@ -184,7 +201,12 @@ describe('source suite bootstrap', () => {
         },
         scripts: { 'stage-browser-assets': 'node build/bin/browser-assets.js' }
       },
-      'anubis-resource': { name: '@ai-security-tool/resource', version: '2.2.3' },
+      'anubis-resource': {
+        name: '@ai-security-tool/resource',
+        version: '2.2.3',
+        devDependencies: { png2icons: '1.0.0', sharp: '1.0.0' },
+        scripts: { prepare: 'node bin/build-brand-icons.js' }
+      },
       'anubis-managed-access': { name: '@ai-security-tool/managed-access', version: '1.0.4' },
       'anubis-sync-server-node': { name: 'anubis-sync-server-node', version: '1.0.0' }
     }
@@ -196,6 +218,19 @@ describe('source suite bootstrap', () => {
         const slug = args[args.length - 2].split('/').pop()
         fs.mkdirSync(checkout, { recursive: true })
         writeJson(path.join(checkout, 'package.json'), packageData[slug])
+        if (slug === 'anubis-resource') {
+          assert.equal(fs.existsSync(path.join(checkout, 'node_modules')), false, 'A fresh resource checkout must not have dependencies')
+          writeJson(path.join(checkout, 'package-lock.json'), {
+            name: packageData[slug].name,
+            version: packageData[slug].version,
+            lockfileVersion: 3,
+            packages: {
+              '': packageData[slug],
+              'node_modules/png2icons': { version: '1.0.0' },
+              'node_modules/sharp': { version: '1.0.0' }
+            }
+          })
+        }
         if (slug === 'anubis-web') {
           fs.mkdirSync(path.join(checkout, 'scripts'), { recursive: true })
           fs.writeFileSync(path.join(checkout, 'scripts', 'install-source.js'), '')
@@ -215,8 +250,19 @@ describe('source suite bootstrap', () => {
       return { stdout: '' }
     }
 
+    let resourceDependenciesInstalled = false
     const npm = (args, options = {}) => {
       calls.npm.push({ args, options })
+      if (args[0] === 'ci' && options.cwd === path.join(workspace, 'components', 'resource')) {
+        assert.ok(args.includes('--include=dev'))
+        assert.ok(args.includes('--registry=https://npm.anubis.locker/'))
+        const modules = path.join(options.cwd, 'node_modules')
+        assert.equal(fs.existsSync(modules), false, 'Resource npm ci must start from a dependency-free checkout')
+        for (const dependency of ['png2icons', 'sharp']) {
+          writeJson(path.join(modules, dependency, 'package.json'), { name: dependency, version: '1.0.0' })
+        }
+        resourceDependenciesInstalled = true
+      }
       if (args[0] === 'run' && args[1] === 'stage-browser-assets') {
         const web = options.cwd
         const dir = path.join(web, 'dist', 'browser-assets-package-5.7.5')
@@ -242,8 +288,15 @@ describe('source suite bootstrap', () => {
       return { stdout: '' }
     }
 
-    const pack = (directory, output) => {
+    const pack = (directory, output, options) => {
       const pkg = JSON.parse(fs.readFileSync(path.join(directory, 'package.json'), 'utf8'))
+      if (pkg.name === '@ai-security-tool/resource') {
+        assert.equal(options.scripts, true)
+        assert.equal(resourceDependenciesInstalled, true, 'Resource prepare tools must be installed before npm pack')
+        for (const dependency of ['png2icons', 'sharp']) {
+          assert.ok(fs.existsSync(path.join(directory, 'node_modules', dependency, 'package.json')))
+        }
+      }
       return {
         path: path.join(output, `${pkg.name.replace(/^@/, '').replace(/\//g, '-')}-${pkg.version}.tgz`),
         name: pkg.name,
@@ -280,6 +333,9 @@ describe('source suite bootstrap', () => {
       assert.ok(calls.run.some(call => call.command === process.execPath && call.args[0].endsWith('install-source.js') &&
         call.args.includes('--renderer-package') && call.args.includes('--sdk-package') && call.args.includes('--resource-package')))
       assert.ok(calls.npm.some(call => call.args[0] === 'run' && call.args[1] === 'stage-browser-assets'))
+      const resourceCi = calls.npm.find(call => call.args[0] === 'ci' && call.options.cwd === path.join(workspace, 'components', 'resource'))
+      assert.ok(resourceCi, 'Resource dev dependencies must be installed with npm ci')
+      assert.ok(resourceCi.args.includes('--include=dev'))
       assert.ok(calls.npm.some(call => call.args[0] === 'install' && call.args.includes('--package-lock=false')))
       assert.ok(calls.run.some(call => call.command === process.execPath && call.args[0] === '--test' && call.args[1] === 'test.js'))
       assert.ok(calls.npm.some(call => call.args[0] === 'run' && call.args[1] === 'b'))
@@ -294,6 +350,7 @@ describe('source suite bootstrap', () => {
     const sourceRoot = path.join(temp, 'source')
     const workspace = path.join(temp, 'suite')
     const calls = []
+    let stoppedLogAfterCleanup = false
     fs.mkdirSync(sourceRoot)
 
     const run = (command, args) => {
@@ -313,14 +370,7 @@ describe('source suite bootstrap', () => {
     }
 
     const spawnProcess = (command, args, options) => {
-      const child = new EventEmitter()
-      child.exitCode = null
-      child.signalCode = null
-      child.pid = calls.length + 100
-      child.kill = signal => {
-        child.signalCode = signal
-        return true
-      }
+      const child = fakeChild(calls.length + 100)
       calls.push({ command, args, options, child })
       if (args[0].endsWith('start-managed.js')) {
         process.nextTick(() => {
@@ -345,7 +395,14 @@ describe('source suite bootstrap', () => {
           assert.equal(config.host, '127.0.0.1')
           assert.equal(config.port, 7101)
         },
-        log: { info: () => {} }
+        log: {
+          info: message => {
+            if (message === '[anubis] Source suite stopped.') {
+              assert.equal(calls[0].child.signalCode, 'SIGTERM')
+              stoppedLogAfterCleanup = true
+            }
+          }
+        }
       })
       assert.equal(calls.length, 2)
       const sync = calls[0]
@@ -360,10 +417,162 @@ describe('source suite bootstrap', () => {
       assert.equal(web.options.env.ANUBIS_SYNC_JWT_SECRET, sync.options.env.JWT_SECRET)
       assert.equal(web.options.env.DB_PATH, path.join(workspace, 'data', 'web'))
       assert.equal(web.options.env.DATA_PATH, path.join(workspace, 'data', 'web'))
+      assert.equal(sync.child.killSignals[0], 'SIGTERM')
       assert.equal(sync.child.signalCode, 'SIGTERM')
+      assert.equal(stoppedLogAfterCleanup, true)
       assert.ok(fs.existsSync(path.join(workspace, 'data', 'web')))
     } finally {
       fs.rmSync(temp, { recursive: true, force: true })
     }
+  })
+
+  it('disables managed enrollment for the local Desktop run', async () => {
+    const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'anubis-suite-desktop-run-'))
+    const sourceRoot = path.join(temp, 'source')
+    const workspace = path.join(temp, 'suite')
+    const electronBinary = path.join(temp, 'electron')
+    const calls = []
+    fs.mkdirSync(path.join(sourceRoot, 'work', 'app'), { recursive: true })
+    fs.mkdirSync(path.join(sourceRoot, 'node_modules', 'electron'), { recursive: true })
+    fs.writeFileSync(path.join(sourceRoot, 'work', 'app', 'app.js'), '')
+    fs.writeFileSync(electronBinary, '')
+    fs.writeFileSync(path.join(sourceRoot, 'node_modules', 'electron', 'index.js'), `module.exports = ${JSON.stringify(electronBinary)}\n`)
+
+    const run = (command, args) => {
+      if (command === 'git' && args[0] === 'clone') {
+        const checkout = args[args.length - 1]
+        fs.mkdirSync(checkout, { recursive: true })
+      }
+      return { stdout: '' }
+    }
+
+    const spawnProcess = (command, args, options) => {
+      const child = fakeChild(calls.length + 200)
+      calls.push({ command, args, options, child })
+      if (command === electronBinary) {
+        process.nextTick(() => {
+          child.exitCode = 0
+          child.emit('exit', 0, null)
+        })
+      }
+      return child
+    }
+
+    try {
+      await suite.runSuite({ runMode: 'desktop', workspace }, {
+        pins: pinsFixture(),
+        workspace,
+        sourceRoot,
+        platform: 'linux',
+        env: {
+          ANUBIS_ADMIN_MANAGED_ENABLED: '1',
+          ANUBIS_ADMIN_MANAGED_URL: 'https://api.anubis.locker'
+        },
+        run,
+        spawnProcess,
+        secureDirectory: () => {},
+        waitForSync: async () => {},
+        log: { info: () => {} }
+      })
+      const desktop = calls.find(call => call.command === electronBinary)
+      assert.ok(desktop)
+      assert.equal(desktop.options.env.ANUBIS_ADMIN_MANAGED_ENABLED, '0')
+      assert.equal(desktop.options.env.ANUBIS_ADMIN_MANAGED_URL, '')
+    } finally {
+      fs.rmSync(temp, { recursive: true, force: true })
+    }
+  })
+
+  it('fails when local Sync exits after readiness and waits for clients to stop', async () => {
+    const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'anubis-suite-sync-exit-'))
+    const sourceRoot = path.join(temp, 'source')
+    const workspace = path.join(temp, 'suite')
+    const calls = []
+    let stoppedLog = false
+    fs.mkdirSync(sourceRoot)
+
+    const run = (command, args) => {
+      if (command === 'git' && args[0] === 'clone') {
+        const checkout = args[args.length - 1]
+        const slug = args[args.length - 2].split('/').pop()
+        fs.mkdirSync(checkout, { recursive: true })
+        if (slug === 'anubis-web') {
+          fs.mkdirSync(path.join(checkout, 'dist', 'assets', 'views'), { recursive: true })
+          fs.writeFileSync(path.join(checkout, 'dist', 'assets', 'views', 'asset-manifest.json'), '{}')
+          fs.mkdirSync(path.join(checkout, 'scripts'), { recursive: true })
+          fs.writeFileSync(path.join(checkout, 'scripts', 'start-managed.js'), '')
+        }
+      }
+      return { stdout: '' }
+    }
+
+    const spawnProcess = (command, args, options) => {
+      const child = fakeChild(calls.length + 300)
+      calls.push({ command, args, options, child })
+      if (args[0].endsWith('start-managed.js')) {
+        setTimeout(() => {
+          const sync = calls[0].child
+          sync.exitCode = 1
+          sync.emit('exit', 1, null)
+        }, 5)
+      }
+      return child
+    }
+
+    try {
+      await assert.rejects(suite.runSuite({ runMode: 'web', workspace }, {
+        pins: pinsFixture(),
+        workspace,
+        sourceRoot,
+        platform: 'linux',
+        env: {},
+        run,
+        spawnProcess,
+        secureDirectory: () => {},
+        waitForSync: async () => {},
+        log: {
+          info: message => {
+            if (message === '[anubis] Source suite stopped.') stoppedLog = true
+          }
+        }
+      }), /Local Sync server exited after becoming ready \(code 1\)/)
+      assert.equal(calls.length, 2)
+      assert.equal(calls[1].child.signalCode, 'SIGTERM', 'The running Web client must stop before the failure returns')
+      assert.equal(stoppedLog, false)
+    } finally {
+      fs.rmSync(temp, { recursive: true, force: true })
+    }
+  })
+
+  it('escalates child termination and waits for the exit event', async () => {
+    const child = new EventEmitter()
+    child.exitCode = null
+    child.signalCode = null
+    child.pid = 400
+    child.killSignals = []
+    child.kill = signal => {
+      child.killSignals.push(signal)
+      if (signal === 'SIGKILL') {
+        process.nextTick(() => {
+          child.signalCode = signal
+          child.emit('exit', null, signal)
+        })
+      }
+      return true
+    }
+
+    await suite.stopChild(child, 'linux', { gracefulTimeoutMs: 5, forcedTimeoutMs: 100 })
+    assert.deepEqual(child.killSignals, ['SIGTERM', 'SIGKILL'])
+    assert.equal(child.signalCode, 'SIGKILL')
+
+    const stuck = new EventEmitter()
+    stuck.exitCode = null
+    stuck.signalCode = null
+    stuck.pid = 401
+    stuck.kill = () => true
+    await assert.rejects(
+      suite.stopChild(stuck, 'linux', { gracefulTimeoutMs: 5, forcedTimeoutMs: 5 }),
+      /did not exit after graceful and forced termination/
+    )
   })
 })

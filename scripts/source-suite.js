@@ -447,6 +447,14 @@ async function installSuite (options, {
   ensureDirectory(checkouts.web, { privateDirectory: true, platform, secureDirectory })
   const syncConfig = ensureLocalSyncConfig(workspace, { platform, secureDirectory })
   const output = path.join(workspace, 'output')
+  const resourceLock = path.join(checkouts.resource, 'package-lock.json')
+  if (!fs.existsSync(resourceLock)) {
+    throw new Error(`Pinned resource source is missing package-lock.json: ${resourceLock}`)
+  }
+  npm([
+    'ci', '--include=dev', '--legacy-peer-deps', '--no-audit', '--no-fund',
+    `--registry=${registry}`
+  ], { cwd: checkouts.resource })
   const resourcePkg = pack(checkouts.resource, output, { scripts: true, npm })
   const sdkPkg = pack(checkouts['managed-access'], output, { scripts: false, npm })
   packMetadata(resourcePkg, packageSpecs.resource, 'Resource')
@@ -609,14 +617,75 @@ async function waitForLocalSync (child, config, { timeoutMs = 10000, fetchImpl =
   }
 }
 
-function stopChild (child, platform) {
-  if (!child || child.exitCode !== null || child.signalCode !== null || !child.pid) return
-  if (platform === 'win32') {
-    const result = spawnSync('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true })
-    if (result.error || result.status !== 0) child.kill()
-  } else {
-    child.kill('SIGTERM')
+function childHasExited (child) {
+  return (child.exitCode !== null && child.exitCode !== undefined) ||
+    (child.signalCode !== null && child.signalCode !== undefined)
+}
+
+function observeChild (child) {
+  return new Promise(resolve => {
+    let settled = false
+    const finish = outcome => {
+      if (settled) return
+      settled = true
+      resolve(outcome)
+    }
+    const onError = error => finish({ error })
+    const onExit = (code, signal) => finish({ code, signal })
+    const onClose = () => {
+      child.removeListener('error', onError)
+      child.removeListener('exit', onExit)
+      child.removeListener('close', onClose)
+    }
+    child.once('error', onError)
+    child.once('exit', onExit)
+    child.once('close', onClose)
+    if (childHasExited(child)) {
+      queueMicrotask(() => onExit(child.exitCode, child.signalCode))
+    }
+  })
+}
+
+function waitForChildExit (child, timeoutMs) {
+  if (childHasExited(child)) return Promise.resolve(true)
+  return new Promise(resolve => {
+    let timer
+    const finish = exited => {
+      clearTimeout(timer)
+      child.removeListener('exit', onExit)
+      resolve(exited || childHasExited(child))
+    }
+    const onExit = () => finish(true)
+    child.once('exit', onExit)
+    timer = setTimeout(() => finish(false), timeoutMs)
+    if (childHasExited(child)) finish(true)
+  })
+}
+
+function signalChild (child, platform, force) {
+  if (platform === 'win32' && child.pid) {
+    const args = ['/PID', String(child.pid), '/T']
+    if (force) args.push('/F')
+    const result = spawnSync('taskkill.exe', args, {
+      stdio: 'ignore',
+      windowsHide: true,
+      timeout: 3000
+    })
+    if (!result.error && result.status === 0) return
   }
+  child.kill(force ? 'SIGKILL' : 'SIGTERM')
+}
+
+async function stopChild (child, platform, {
+  gracefulTimeoutMs = 3000,
+  forcedTimeoutMs = 3000
+} = {}) {
+  if (!child || childHasExited(child) || !child.pid) return
+  signalChild(child, platform, false)
+  if (await waitForChildExit(child, gracefulTimeoutMs)) return
+  signalChild(child, platform, true)
+  if (await waitForChildExit(child, forcedTimeoutMs)) return
+  throw new Error(`Source-suite child process ${child.pid} did not exit after graceful and forced termination`)
 }
 
 async function runSuite (options, {
@@ -640,15 +709,27 @@ async function runSuite (options, {
   const syncConfig = ensureLocalSyncConfig(workspace, { platform, secureDirectory })
   const syncUrl = `http://${syncConfig.host}:${syncConfig.port}/api/sync`
   const children = []
+  const outcomes = new Map()
+  const stopPromises = new Map()
+  const trackChild = child => {
+    children.push(child)
+    outcomes.set(child, observeChild(child))
+    return child
+  }
+  const stopOwnedChild = child => {
+    if (!stopPromises.has(child)) stopPromises.set(child, stopChild(child, platform))
+    return stopPromises.get(child)
+  }
   let interrupted = false
   const interrupt = () => {
     interrupted = true
-    for (const child of children) stopChild(child, platform)
+    for (const child of children) stopOwnedChild(child).catch(() => {})
   }
   process.once('SIGINT', interrupt)
   process.once('SIGTERM', interrupt)
+  let runError
   try {
-    const sync = spawnProcess(process.execPath, [path.join(paths['sync-server-node'], 'server.js')], {
+    const sync = trackChild(spawnProcess(process.execPath, [path.join(paths['sync-server-node'], 'server.js')], {
       cwd: paths['sync-server-node'],
       env: {
         ...env,
@@ -660,8 +741,7 @@ async function runSuite (options, {
       },
       stdio: 'inherit',
       windowsHide: true
-    })
-    children.push(sync)
+    }))
     await waitForSync(sync, syncConfig)
     const desktopData = path.join(workspace, 'data', 'desktop')
     const webData = path.join(workspace, 'data', 'web')
@@ -673,7 +753,9 @@ async function runSuite (options, {
       ANUBIS_USER_DATA_DIR: desktopData,
       ANUBIS_ADMIN_CUSTOM_SYNC_API: syncUrl,
       ANUBIS_ADMIN_CUSTOM_SYNC_SECRET: syncConfig.jwtSecret,
-      ANUBIS_ADMIN_CUSTOM_SYNC_USER: syncConfig.userId
+      ANUBIS_ADMIN_CUSTOM_SYNC_USER: syncConfig.userId,
+      ANUBIS_ADMIN_MANAGED_ENABLED: '0',
+      ANUBIS_ADMIN_MANAGED_URL: ''
     }
     const webEnv = {
       ...sourceEnvironment(env, syncConfig),
@@ -692,43 +774,55 @@ async function runSuite (options, {
       if (typeof electron !== 'string' || !fs.existsSync(electron)) {
         throw new Error('Desktop Electron is not installed; run the install command first')
       }
-      const child = spawnProcess(electron, [path.join(sourceRoot, 'work', 'app', 'app.js')], {
+      const child = trackChild(spawnProcess(electron, [path.join(sourceRoot, 'work', 'app', 'app.js')], {
         cwd: sourceRoot,
         env: clientEnv,
         stdio: 'inherit',
         windowsHide: true
-      })
-      children.push(child)
+      }))
       clients.push(child)
     }
     if (options.runMode !== 'desktop') {
       if (!fs.existsSync(path.join(paths.web, 'dist', 'assets', 'views', 'asset-manifest.json'))) {
         throw new Error('Standalone Web source output is missing; run the install command first')
       }
-      const child = spawnProcess(process.execPath, [path.join(paths.web, 'scripts', 'start-managed.js')], {
+      const child = trackChild(spawnProcess(process.execPath, [path.join(paths.web, 'scripts', 'start-managed.js')], {
         cwd: paths.web,
         env: webEnv,
         stdio: 'inherit',
         windowsHide: true
-      })
-      children.push(child)
+      }))
       clients.push(child)
     }
     if (!clients.length) throw new Error('No client process was selected')
-    const result = await Promise.race(clients.map(child => new Promise((resolve, reject) => {
-      child.once('error', reject)
-      child.once('exit', (code, signal) => resolve({ code, signal }))
-    })))
-    if (!interrupted && result.code !== 0) {
-      throw new Error(`A source client exited with ${result.signal || `code ${result.code}`}`)
+    const result = await Promise.race([
+      Promise.race(clients.map(child => outcomes.get(child))).then(outcome => ({ source: 'client', outcome })),
+      outcomes.get(sync).then(outcome => ({ source: 'sync', outcome }))
+    ])
+    if (!interrupted && result.source === 'sync') {
+      const detail = result.outcome.error?.message || result.outcome.signal || `code ${result.outcome.code}`
+      throw new Error(`Local Sync server exited after becoming ready (${detail})`)
+    }
+    if (!interrupted && result.outcome.error) throw result.outcome.error
+    if (!interrupted && result.source === 'client' && result.outcome.code !== 0) {
+      throw new Error(`A source client exited with ${result.outcome.signal || `code ${result.outcome.code}`}`)
     }
   } catch (error) {
-    if (!interrupted) throw error
+    if (!interrupted) runError = error
   } finally {
     process.removeListener('SIGINT', interrupt)
     process.removeListener('SIGTERM', interrupt)
-    for (const child of children) stopChild(child, platform)
+    const stopped = await Promise.allSettled(children.map(stopOwnedChild))
+    const failures = stopped.filter(result => result.status === 'rejected')
+    if (failures.length) {
+      const details = failures.map(result => result.reason?.message || String(result.reason)).join('; ')
+      const cause = runError ? `; original error: ${runError.message}` : ''
+      const cleanupError = new Error(`Failed to stop source-suite child processes: ${details}${cause}`)
+      if (runError) cleanupError.cause = runError
+      throw cleanupError
+    }
   }
+  if (runError) throw runError
   log.info('[anubis] Source suite stopped.')
 }
 
