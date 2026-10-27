@@ -1,6 +1,6 @@
 {
   "name": "@ai-security-tool/electerm-react",
-  "version": "5.7.5",
+  "version": "5.7.6",
   "description": "react components src for Anubis-Security-Tool",
   "main": "./client/components/main/main.jsx",
   "license": "MIT",
@@ -30,6 +30,8 @@
     "app/common/parse-vv.mjs",
     "app/common/vv-to-tab.mjs",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "NOTICE",
+    "THIRD-PARTY-LICENSES.md"
   ]
 }

@@ -6,12 +6,18 @@ not deploy the main website or the public demo.
 
 ## Publishing
 
-1. Update `package.json` and its lockfile. Commit the changes and push `vX.Y.Z`.
-2. `release.yml` checks the version, runs unit regressions and builds Windows
-   installer/portable/archive, Linux deb/archive/AppImage and both macOS DMGs.
+1. Update `package.json` and its lockfile and push the reviewed commit. Dispatch
+   `release.yml` on that exact ref with `publish=true`; the version tag must be
+   unused. Do not create the tag before validating the workflow.
+2. `release.yml` checks the version and unit regressions, then runs the fresh-source
+   smoke, three-OS protocol gates and six native build jobs in parallel. Native
+   targets are Windows installer/portable/archive, Linux deb/archive/AppImage and
+   both macOS DMGs. Final publication requires every gate to pass.
 3. `services/prepare-release.js` rejects incomplete, empty or duplicate artifacts,
    flattens nested artifact directories and generates `SHA256SUMS` for the exact
-   attached bytes. Published release assets are never silently overwritten.
+   attached bytes. Only then does the final job atomically create the version tag
+   at the validated commit and attach those same artifacts without rebuilding.
+   Published tags and release assets are never silently overwritten.
 4. The signed release webhook publishes available GitHub asset URLs. The
    `publish-self-hosted` workflow independently verifies all checksums, uploads
    assets into `download.anubis.locker/releases/<tag>/`, verifies them again on
@@ -23,7 +29,8 @@ Requests with `?src=<installSrc>` use the release API's platform filter.
 The distribution server also maintains `/<tag>/` compatibility links for the
 download mirror embedded in existing clients.
 
-Manual `release` runs on branches build artifacts without publishing a release.
+Manual `release` runs default to `publish=false`: artifacts only, no tag or release.
+Existing tag-triggered runs still require the tag to match `package.json`.
 Manual `publish-self-hosted` runs accept an already published stable tag, including
 an older tag for rollback. Prereleases do not change the stable update channel.
 Existing clients do not automatically downgrade.

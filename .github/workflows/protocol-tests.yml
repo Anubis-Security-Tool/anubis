@@ -35,6 +35,8 @@ on:
       - 'src/build/bin/prepare.js'
       - 'src/test/unit-ci/packaging-yarn.spec.js'
       - 'src/build/bin/third-party-notices.js'
+      - 'src/build/bin/third-party-compliance.js'
+      - 'src/test/unit-ci/packaging-compliance.spec.js'
       - 'src/build/bin/after-pack.js'
       - 'src/test/unit-ci/packaging-notices.spec.js'
       - 'src/app/common/*.mjs'
@@ -64,6 +66,8 @@ on:
       - 'src/build/bin/prepare.js'
       - 'src/test/unit-ci/packaging-yarn.spec.js'
       - 'src/build/bin/third-party-notices.js'
+      - 'src/build/bin/third-party-compliance.js'
+      - 'src/test/unit-ci/packaging-compliance.spec.js'
       - 'src/build/bin/after-pack.js'
       - 'src/test/unit-ci/packaging-notices.spec.js'
       - 'src/app/common/*.mjs'
@@ -146,6 +150,7 @@ jobs:
           src/test/unit-ci/fs-shell-lifecycle.spec.js
           src/test/unit-ci/packaging-yarn.spec.js
           src/test/unit-ci/packaging-notices.spec.js
+          src/test/unit-ci/packaging-compliance.spec.js
           src/test/unit-ci/managed-browser.spec.js
           src/test/unit-ci/managed-browser-rpc.spec.js
           src/test/unit-ci/managed-browser-packaging.spec.js

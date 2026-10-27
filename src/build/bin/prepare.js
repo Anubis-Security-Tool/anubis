@@ -47,6 +47,8 @@ cp('-r', 'src/app', 'work/')
 cp('src/common/brand.config.js', 'work/app/common/brand.config.js')
 const notices = require('./third-party-notices')
 notices.captureBuildNotices(cwd)
+const compliance = require('./third-party-compliance')
+compliance.stageCompliance(cwd)
 rm('-rf', 'work/app/user-config.json')
 rm('-rf', 'work/app/localstorage.json')
 rm('-rf', 'work/app/nohup.out')
@@ -147,6 +149,8 @@ if (process.env.ANUBIS_SDK_SOURCE_DIR) {
   )
 }
 notices.verifyNotices(cwd)
+compliance.verifyCompliance(cwd)
+require('./browser-assets').verifyStagedBrowserAssets(resolve(cwd, 'work/app/browser-assets'))
 
 const endTime = +new Date()
 echo(`done pack prepare in ${(endTime - timeStart) / 1000} s`)

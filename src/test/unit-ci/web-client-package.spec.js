@@ -35,6 +35,10 @@ test('published renderer resolves shared browser modules without the app checkou
       path.relative(consumer, path.join(target, packed.filename))
     ])
     const installed = path.join(consumer, 'node_modules', '@ai-security-tool', 'electerm-react')
+    for (const file of ['LICENSE', 'NOTICE', 'THIRD-PARTY-LICENSES.md']) {
+      assert(files.has(file), `Packed original legal file is missing: ${file}`)
+      assert.deepEqual(fs.readFileSync(path.join(installed, file)), fs.readFileSync(path.join(root, file)))
+    }
     const client = path.join(installed, 'client')
     const shared = new Set()
     for (const entry of fs.readdirSync(client, { recursive: true, withFileTypes: true })) {

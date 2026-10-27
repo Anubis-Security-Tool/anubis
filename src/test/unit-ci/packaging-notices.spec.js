@@ -1,10 +1,13 @@
-const { test } = require('node:test')
+const { test, mock } = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const os = require('node:os')
 const asar = require('@electron/asar')
 const notices = require('../../build/bin/third-party-notices')
+const compliance = require('../../build/bin/third-party-compliance')
+mock.method(compliance, 'verifyPackagedCompliance', () => {})
+mock.method(require('../../build/bin/browser-assets'), 'verifyPackagedBrowserAssets', () => {})
 const afterPack = require('../../build/bin/after-pack')
 
 function fixture (t) {

@@ -19,10 +19,13 @@ function assembleWebClient ({
   pkg.version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version
   pkg.publishConfig = { registry }
   fs.mkdirSync(target, { recursive: true })
-  for (const file of ['LICENSE', '.npmignore', 'README.md']) {
+  for (const file of ['.npmignore', 'README.md']) {
     const source = path.join(template, file)
     if (target !== template && fs.existsSync(source)) {
       fs.copyFileSync(source, path.join(target, file))
+    }
+    for (const file of ['LICENSE', 'NOTICE', 'THIRD-PARTY-LICENSES.md']) {
+      fs.copyFileSync(path.join(root, file), path.join(target, file))
     }
   }
   fs.writeFileSync(path.join(target, 'package.json'), JSON.stringify(pkg, null, 2) + '\n')

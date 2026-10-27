@@ -1,12 +1,15 @@
 name: release
 
-# Tag vX.Y.Z (must equal package.json "version")  ->  build all MVP targets
-# -> create the GitHub release -> publish-self-hosted (our VPS, see docs/RELEASE.md).
+# Manual publication creates its unused version tag only after every gate passes.
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
-    # Manual run from a branch only builds and keeps the artifacts; no release is created.
+    inputs:
+      publish:
+        description: Publish this exact commit after all gates pass (creates an unused version tag)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -18,6 +21,8 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
     env:
       NPM_REGISTRY_URL: https://npm.anubis.locker/
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
@@ -26,6 +31,21 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: 24.x
+    - name: Read the source version
+      id: version
+      run: echo "tag=v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+    - name: Require an unused version for manual publication
+      if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
+      env:
+        TAG: ${{ steps.version.outputs.tag }}
+      run: |
+        if git ls-remote --exit-code origin "refs/tags/$TAG"; then
+          echo "::error::Tag $TAG already exists; never move or replace a public tag"
+          exit 1
+        else
+          status=$?
+          if [ "$status" -ne 2 ]; then exit "$status"; fi
+        fi
     - name: Tag matches package.json version
       if: ${{ startsWith(github.ref, 'refs/tags/v') }}
       env:
@@ -77,8 +97,8 @@ jobs:
     secrets: inherit
 
   release:
-    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-    needs: [protocols-and-source, win-nsis, win-portable, win-tar, linux-deb-tar, mac-x64, mac-arm]
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+    needs: [check, protocols-and-source, win-nsis, win-portable, win-tar, linux-deb-tar, mac-x64, mac-arm]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -94,7 +114,8 @@ jobs:
     - name: Create GitHub release and attach assets
       env:
         GH_TOKEN: ${{ github.token }}
-        TAG: ${{ github.ref_name }}
+        TAG: ${{ needs.check.outputs.tag }}
+        TARGET_SHA: ${{ github.sha }}
       run: |
         node services/prepare-release.js out release-assets "${TAG#v}"
         pre=""
@@ -102,8 +123,12 @@ jobs:
         if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
           echo "::error::Release $TAG already exists; do not replace published binaries"; exit 1
         else
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f ref="refs/tags/$TAG" -f sha="$TARGET_SHA" >/dev/null
+          fi
           gh release create "$TAG" release-assets/* --repo "$GITHUB_REPOSITORY" \
-            --title "$TAG" --generate-notes $pre
+            --verify-tag --target "$TARGET_SHA" --title "$TAG" --generate-notes $pre
         fi
 
   publish-self-hosted:

@@ -38,11 +38,15 @@ function prepare (failure) {
       }
     },
     fs: { writeFileSync: (file, bytes) => writes.set(file, bytes) },
-    './browser-assets': { stageBrowserAssets () {} },
+    './browser-assets': { stageBrowserAssets () {}, verifyStagedBrowserAssets () {} },
     './third-party-notices': {
       captureBuildNotices () { events.push('build notices') },
       captureRuntimeNotices () { events.push('runtime notices') },
       verifyNotices () { events.push('verify notices') }
+    },
+    './third-party-compliance': {
+      stageCompliance () { events.push('stage compliance') },
+      verifyCompliance () { events.push('verify compliance') }
     },
     './clean-empty-folders': { main () {} }
   }
@@ -80,6 +84,8 @@ test('actual preparation uses local Node/Yarn arguments without global Yarn or s
   assert(events.indexOf('runtime notices') > events.indexOf('install'))
   assert(events.indexOf('runtime notices') < events.indexOf('work/app/node_modules/.bin'))
   assert(events.indexOf('verify notices') > events.indexOf('autoclean'))
+  assert(events.indexOf('stage compliance') < events.indexOf('install'))
+  assert(events.indexOf('verify compliance') > events.indexOf('autoclean'))
   assert.deepEqual(shellCommands, ['npm i --omit=dev --legacy-peer-deps'])
   assert.equal(calls.length, 2)
   assert(calls.every(call => call.file === process.execPath && call.options.cwd === path.join(cwd, 'work', 'app')))
@@ -114,4 +120,14 @@ test('release requires fresh source smoke parallel to native builds without inhe
   }
   assert.doesNotMatch(JSON.stringify(protocol.jobs['source-suite-smoke']), /secrets\./)
   assert.doesNotMatch(JSON.stringify(protocol.jobs['source-suite-smoke'].env), /\$\{\{\s*runner\./)
+  assert.equal(release.on.workflow_dispatch.inputs.publish.default, false)
+  assert.equal(release.on.workflow_dispatch.inputs.publish.type, 'boolean')
+  assert.match(release.jobs.release.if, /workflow_dispatch.*inputs\.publish/)
+  assert(release.jobs.release.needs.includes('check'))
+  const publish = release.jobs.release.steps.find(step => step.name === 'Create GitHub release and attach assets')
+  assert.match(publish.env.TARGET_SHA, /^\$\{\{\s*github\.sha\s*\}\}$/)
+  assert.match(publish.env.TAG, /^\$\{\{\s*needs\.check\.outputs\.tag\s*\}\}$/)
+  assert.match(publish.run, /git\/refs/)
+  assert.match(publish.run, /--verify-tag --target "\$TARGET_SHA"/)
+  assert.doesNotMatch(publish.run, /--force|--clobber/)
 })

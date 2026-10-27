@@ -18,6 +18,23 @@ claim for an upstream package missing its notices. Preparation and every
 platform's final ASAR gate reject missing or changed retained bytes. These files
 are part of the application, not additional release formats.
 
+The exact pinned `@ai-security-tool/third-party-compliance` data capsule is also
+copied in full to `app.asar/third-party-compliance`, outside cleaned dependencies.
+Its original manifest covers notices, preferred-source archives and source/relink
+instructions, including upstream-declaration-only cases without inventing missing
+copyright notices. Both staging and final ASAR checks require every indexed file,
+original byte count and hash; linked, unsafe, duplicate or unindexed source paths
+fail preparation. The capsule is data, never an executable entry point.
+
+The complete browser asset tree is staged outside `node_modules` before cleanup,
+including its nested compliance README, notices and source archives. Registry
+inputs must match the publisher's `source.json` file hashes, count and tree digest.
+Fresh source-browser builds invoke the pinned Web notice collector against the
+actual Main dependency graph after compilation. The native version marker adds
+only root `browser-assets/manifest.json`; nested publisher manifests are unchanged.
+After cleanup and in the final ASAR, all browser files must still match the staged
+tree exactly, with no missing, changed or unexpected files.
+
 ## Installation and explicit authorization
 
 Setup is silent after UAC, never launches the GUI, and returns zero only after

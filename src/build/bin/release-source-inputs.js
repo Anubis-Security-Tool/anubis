@@ -3,6 +3,7 @@ const path = require('node:path')
 const assert = require('node:assert/strict')
 const crypto = require('node:crypto')
 const { execFileSync } = require('node:child_process')
+const { pathToFileURL } = require('node:url')
 
 const root = path.resolve(__dirname, '../../..')
 const read = file => JSON.parse(fs.readFileSync(file, 'utf8'))
@@ -46,14 +47,15 @@ function run (cwd, script, args = []) {
   execFileSync(process.execPath, [script, ...args], { cwd, env: process.env, stdio: 'inherit' })
 }
 
-function build () {
+async function build () {
   const manifest = verify()
   const version = read(path.join(root, 'package.json')).version
   const producer = path.join(root, '.release-build', 'browser')
   assert(!fs.existsSync(producer), 'A release producer must be fresh; do not silently reuse outputs')
   fs.mkdirSync(producer, { recursive: true })
   const web = path.join(root, '.release-inputs', 'web')
-  copyTracked(web, producer, file => /^(build\/|src\/app\/(common|views)\/)/.test(file) ||
+  copyTracked(web, producer, file => /^(?:LICENSE|NOTICE|THIRD-PARTY-LICENSES(?:\.md)?|README\.md)$/.test(file) ||
+    /^(build\/|src\/app\/(common|views)\/)/.test(file) ||
     (file.startsWith('src/client/') && !/^src\/client\/(electerm-react|app)\//.test(file)))
   const appCopy = path.join(root, '.release-build', 'current-app')
   copyTracked(root, appCopy, file => file.startsWith('src/client/') || file.startsWith('src/app/common/'))
@@ -74,6 +76,8 @@ function build () {
   run(producer, vite, ['build', '--config', path.join(producer, 'build/vite/conf.js'), '--configLoader', 'runner'])
   run(producer, path.join(producer, 'build/bin/copy.js'))
   const assets = path.join(producer, 'dist/assets')
+  const { collectThirdPartyNotices } = await import(pathToFileURL(path.join(producer, 'build/bin/third-party-notices.js')).href)
+  await collectThirdPartyNotices({ root, assets, requireCompliance: true })
   for (const relative of [`js/basic-${version}.js`, `js/electerm-${version}.js`, `js/worker-${version}.js`, `css/style-${version}.css`]) {
     for (const base of [assets, path.join(root, 'work/app/assets')]) assert(fs.statSync(path.join(base, relative)).size > 0)
   }
@@ -119,8 +123,12 @@ if (require.main === module) {
   } else if (command === 'verify') {
     verify()
     if (process.env.GITHUB_ENV) fs.appendFileSync(process.env.GITHUB_ENV, `BRAND_RES_DIR=${path.join(root, '.release-inputs/resource')}\n`)
-  } else if (command === 'build') build()
-  else throw new Error('Expected pins, verify or build')
+  } else if (command === 'build') {
+    build().catch(error => {
+      console.error(error)
+      process.exitCode = 1
+    })
+  } else throw new Error('Expected pins, verify or build')
 }
 
 module.exports = { pins, verify, copyTracked, stageSdk }
