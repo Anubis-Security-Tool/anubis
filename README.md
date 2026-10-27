@@ -66,7 +66,7 @@ Use the Desktop data export/import flow and re-enter credentials that depend on 
 
 1. On the old computer, create a protected Desktop backup and export application data from **Settings → Sync**. The export can include bookmarks, settings and sensitive configuration; protect the file and do not attach it to an issue.
 2. Install Desktop on the new computer, import into the intended profile and verify the result before changing or retiring the old setup.
-3. If retaining Web data, use the **Settings → Sync** file export/import for the supported data subset, or follow [Web data backup and restore](docs/MIGRATION.md#web-data-backup-and-restore) for a stopped-service database copy. The export is plaintext and not a full database backup; review sync settings before enabling autosync on the new host.
+3. If retaining Web data, first distinguish standalone Web from Windows machine-managed Web in SYSTEM. Use **Settings → Sync** file export/import for its supported data subset, from the Web workspace that actually owns the data. The stopped-service `DB_PATH` copy applies only to standalone Web; never copy the Windows SYSTEM profile to a new PC. See [Web data backup and restore](docs/MIGRATION.md#web-data-backup-and-restore).
 4. Re-enter passwords and tokens, re-check SSH key paths, and enroll/approve the new managed device independently if required.
 5. Keep the old profile and backup until connections and files have been verified on the new computer.
 

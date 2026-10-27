@@ -6,7 +6,7 @@ This procedure separates the application source/install from user data and machi
 
 1. Record the Desktop and Web versions, operating system, installation type (Desktop, standalone Web or managed Web), and which connections you need to recreate.
 2. In Desktop, open **Settings → Sync** and use the application's export action for the data categories you need. The all-data/configuration export contains sensitive settings; store it in an encrypted, access-controlled location. Use the bookmark toolbar's export action if you need a separate bookmark/group file.
-3. If you use Web, first review/disable automatic sync and export any needed sync data from **Settings → Sync**. Then stop its service and make a separate, private backup of the configured `DB_PATH` as described below if you need the full Web profile.
+3. If you use Web, first distinguish the standalone Node service from Windows machine-managed Web running in SYSTEM. Review/disable automatic sync and export needed data from **Settings → Sync** in the Web workspace that actually owns it. Use the `DB_PATH` copy procedure below only for standalone Web; the Windows SYSTEM profile is device-bound and must not be copied to another PC.
 4. Back up SSH keys and certificates through your approved secret-management process. Do not put them in the project clone, issue tracker, Wiki, or an unencrypted transfer archive.
 5. Keep the old machine's installation and backup available until the new profile's bookmarks, connections and file workflows have been checked.
 
@@ -29,6 +29,18 @@ For a source-suite move, export/import Desktop data through the application rath
 ## Web data backup and restore
 
 Web offers two distinct migration paths. **Settings → Sync file export/import** handles the supported sync-data subset; a full standalone Web profile requires a stopped-service file copy. Neither path is part of the Desktop profile.
+
+### Windows machine-managed Web (SYSTEM)
+
+The Windows machine-managed Web workspace is hosted by the `AnubisHost` LocalSystem service. It is not the standalone Web CLI and has no separate standalone `.env` or `ANUBIS_WEB_HOME` configuration. Its canonical SYSTEM profile is:
+
+```text
+%ProgramData%\Anubis\Host\AnubisHost\system-profile\anubis
+```
+
+If you need its bookmarks or supported settings, export them from **that actual SYSTEM Web workspace** using **Settings → Sync**. Do not export from the interactive Desktop profile `%APPDATA%\anubis` as a substitute: it is a separate profile and may be empty. `%APPDATA%\anubis-client` is machine-client UI state, not the Web workspace database. The file export is a sensitive subset, not a full SYSTEM-profile backup.
+
+On a new PC, let the machine installer create a fresh SYSTEM profile and DPAPI context, then enroll the new device and have an administrator verify and approve its new fingerprint. Do not copy the old SYSTEM profile, `web-user-password.txt`, native/DPAPI keys, browser/controller cookies or managed-device identity; approval does not transfer. Re-enter or securely provision user-owned SSH keys and certificates separately, then select their new paths.
 
 ### Settings → Sync file export/import
 
@@ -63,6 +75,19 @@ This file-level transfer must be done while all Web processes using the profile 
 - **Do not copy `.anubis-suite/config/local-sync.json` to a second computer.** It contains the Node Sync JWT secret and user ID. Provision a distinct local service identity on the new computer.
 - **Do not copy Web `.env`, managed-installation identity files, MCP tokens or service credentials.** Generate new local credentials, enroll separately, and approve through the administrator workflow.
 - **Do not expose an HTTP endpoint or disable TLS/authentication to make a migration work.** A Desktop protocol or Web feature does not bypass the target service's security policy.
+
+## Development history and reproducible builds
+
+A clean Git clone followed by the documented source-suite bootstrap is the preferred path for a reproducible build. A clone of published remotes is not a full development-history backup: it may omit unpublished QA/experimental refs, local branches, detached worktree HEADs, ignored files and operator notes.
+
+Before retiring a development PC, inventory every repository used by the work, including all named refs and worktrees. Run `git worktree list --porcelain`; create a durable named ref for each detached worktree HEAD that must be retained (for example, `git branch archive/<name> <detached-commit>`), because `git bundle --all` only includes refs. Bundles do not contain uncommitted changes or untracked/ignored files; record each worktree's status and preserve any needed changes separately. For **each repository**, create and verify a private bundle, writing it outside the checkout to encrypted storage:
+
+```text
+git bundle create <private-archive-path> --all
+git bundle verify <private-archive-path>
+```
+
+Keep operator notes and credentials in separate encrypted backups outside Git repositories and bundles. Do not commit credentials or depend on an earlier archive/ZIP unless you can locate and verify it. Retain the old machine and its worktrees until the bundles and the separately protected records have been checked.
 
 ## Data locations
 
