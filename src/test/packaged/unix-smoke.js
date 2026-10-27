@@ -98,7 +98,8 @@ test('packaged Unix desktop functionality', {
   page = await launch()
   await t.test('native terminal executes a shell command', async () => {
     await page.waitForFunction(() => /[%$#] /.test(document.querySelector('.session-current .xterm-rows')?.innerText || ''))
-    const sidebar = page.locator('.control-icon-wrap.active[title="Bookmarks"]')
+    const sidebar = page.getByRole('navigation', { name: 'Application sections', exact: true })
+      .getByRole('button', { name: 'Bookmarks', exact: true }).and(page.locator('[aria-current="page"]'))
     if (await sidebar.isVisible()) await sidebar.click()
     await page.locator('.session-current .xterm-helper-textarea').first().focus()
     await page.keyboard.insertText("printf 'ANUBIS_%s\\n' PACKAGED_UNIX_OK")

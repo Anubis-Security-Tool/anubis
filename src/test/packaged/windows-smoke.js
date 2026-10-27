@@ -15,7 +15,7 @@ const { startTestFtpServer } = require('../integration/lib/ftp-test-server')
 const { startTestTelnetServer } = require('../integration/lib/telnet-test-server')
 const { startSshForward } = require('../integration/lib/ssh-forward')
 const { snapshotWindowsProtocols } = require('../integration/lib/windows-protocol-fixture')
-const { checkRendererNavigation } = require('./lib/renderer-navigation')
+const { checkRendererNavigation, clickSidebarSection } = require('./lib/renderer-navigation')
 const { checkUIDataFlows, checkUIDataPersistence } = require('./lib/ui-data-flows')
 
 test('packaged Windows desktop functionality', { timeout: 180000 }, async t => {
@@ -109,7 +109,8 @@ test('packaged Windows desktop functionality', { timeout: 180000 }, async t => {
   const page = await launch()
   await t.test('local terminal executes a command, not just opens a window', async () => {
     await page.waitForFunction(() => /PS [^\r\n]*>/.test(document.body.innerText))
-    const sidebarButton = page.locator('.control-icon-wrap.active[title="Bookmarks"]')
+    const sidebarButton = page.getByRole('navigation', { name: 'Application sections', exact: true })
+      .getByRole('button', { name: 'Bookmarks', exact: true }).and(page.locator('[aria-current="page"]'))
     if (await sidebarButton.isVisible()) await sidebarButton.click()
     await page.locator('.session-current .xterm-helper-textarea').first().focus()
     await page.keyboard.insertText('Write-Output ("ANUBIS_" + "TERMINAL_OK")')
@@ -224,7 +225,7 @@ test('packaged Windows desktop functionality', { timeout: 180000 }, async t => {
       { name: 'Download fixture', action: 'sftp_download', remotePath: `/${markerFile}`, localPath: download },
       { name: 'Upload fixture', action: 'sftp_upload', localPath: download, remotePath: '/batch-upload.txt' }
     ]
-    await page.locator('.control-icon-wrap[title="Widgets"]').click()
+    await clickSidebarSection(page, 'Widgets')
     try {
       await page.locator('.setting-wrap .item-list-unit .list-item-title').filter({ hasText: 'Batch Operation' }).first().click()
       await page.locator('.batch-op-editor textarea').fill(JSON.stringify(workflow))
