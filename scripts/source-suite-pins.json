@@ -27,7 +27,7 @@
     },
     "cloudflare-sync": {
       "repository": "https://github.com/Anubis-Security-Tool/anubis-sync-server-cloudflare",
-      "commit": "4bd2bb640b18a5f30a1ff9b3539fa3849ff7244a",
+      "commit": "f24c21554a09a3aa5a597bc51cd09ab28668ff8d",
       "packageName": "anubis-sync-server-cloudflare",
       "version": "1.0.0"
     },
