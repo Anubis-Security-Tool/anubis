@@ -16,18 +16,34 @@ function pinsFixture () {
     'managed-access': 'anubis-managed-access',
     'sync-server-node': 'anubis-sync-server-node'
   }
+  const optional = {
+    'cloudflare-sync': ['anubis-sync-server-cloudflare', 'anubis-sync-server-cloudflare', '1.0.0'],
+    'http-tunnel': ['anubis-http-tunnel', '@ai-security-tool/http-tunnel-server', '0.1.0'],
+    rdpjs: ['anubis-rdpjs', '@ai-security-tool/rdpjs', '1.0.0'],
+    site: ['anubis-site', '@ai-security-tool/anubis-site', '1.0.0']
+  }
+  const components = Object.fromEntries(Object.entries(slugs).map(([name, slug]) => [
+    name,
+    {
+      repository: `https://github.com/Anubis-Security-Tool/${slug}`,
+      commit,
+      ...(name === 'web' ? { packageName: 'anubis-web', version: '5.7.5' } : {}),
+      ...(name === 'resource' ? { packageName: '@ai-security-tool/resource', version: '2.2.3' } : {}),
+      ...(name === 'managed-access' ? { packageName: '@ai-security-tool/managed-access', version: '1.0.4' } : {}),
+      ...(name === 'sync-server-node' ? { packageName: 'anubis-sync-server-node', version: '1.0.0' } : {})
+    }
+  ]))
+  for (const [name, [slug, packageName, version]] of Object.entries(optional)) {
+    components[name] = {
+      repository: `https://github.com/Anubis-Security-Tool/${slug}`,
+      commit,
+      packageName,
+      version
+    }
+  }
   return {
     schemaVersion: 1,
-    components: Object.fromEntries(Object.entries(slugs).map(([name, slug]) => [
-      name,
-      {
-        repository: `https://github.com/Anubis-Security-Tool/${slug}`,
-        commit,
-        ...(name === 'web' ? { packageName: 'anubis-web', version: '5.7.5' } : {}),
-        ...(name === 'resource' ? { packageName: '@ai-security-tool/resource', version: '2.2.3' } : {}),
-        ...(name === 'managed-access' ? { packageName: '@ai-security-tool/managed-access', version: '1.0.4' } : {})
-      }
-    ]))
+    components
   }
 }
 

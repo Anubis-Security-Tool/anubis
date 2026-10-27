@@ -123,7 +123,7 @@ function validateComponentPin (name, component) {
   if (!/^[a-f0-9]{40}$/.test(component.commit || '')) {
     throw new Error(`"${name}" must pin a full lowercase 40-character commit SHA`)
   }
-  if (component.packageName && !/^(@ai-security-tool\/[a-z0-9-]+|anubis-web)$/.test(component.packageName)) {
+  if (component.packageName && !/^(@ai-security-tool\/[a-z0-9-]+|anubis-[a-z0-9-]+)$/.test(component.packageName)) {
     throw new Error(`Invalid expected package name for "${name}"`)
   }
   if (component.version && !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(component.version)) {

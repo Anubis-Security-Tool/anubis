@@ -8,9 +8,7 @@ This guide covers a fresh, local development installation of the Desktop applica
 - The native build tools required by Electron, `node-pty` and `serialport` for the chosen operating system. Native dependency installation can take time and may require platform-specific SDKs.
 - Network access to the pinned Git sources and the Anubis npm registry at `https://npm.anubis.locker/`.
 
-Use a new clone for the suite. The source pins are recorded in [`source-suite.js`](../scripts/source-suite.js); the bootstrap rejects missing or non-immutable pins rather than substituting a branch, a sibling checkout or an unverified registry package.
-
-> **Preparation status:** the immutable source-pin manifest is pending final Web/site component confirmation. Do not run this bootstrap until `scripts/source-suite-pins.json` is present in the checkout. The command intentionally fails rather than guessing a branch or package version.
+Use a new clone for the suite. The source pins are recorded in [`source-suite-pins.json`](../scripts/source-suite-pins.json); the bootstrap rejects missing or non-immutable pins rather than substituting a branch, a sibling checkout or an unverified registry package.
 
 ## Install
 
@@ -22,7 +20,7 @@ cd anubis
 node scripts/source-suite.js install
 ```
 
-When the pin manifest is present, the default command fetches the pinned Web, resource, managed-access SDK and Node Sync sources, builds a renderer package from this exact Desktop checkout, builds the standalone Web runtime with the matching renderer/SDK/resource packages, prepares the local sync server, then builds Desktop. A dependency, version, checksum, clone or build failure stops the sequence with a non-zero exit; the script does not silently fall back to a manually supplied checkout or an older published renderer.
+The default command fetches the pinned Web, resource, managed-access SDK and Node Sync sources, builds a renderer package from this exact Desktop checkout, builds the standalone Web runtime with the matching renderer/SDK/resource packages, prepares the local sync server, then builds Desktop. A dependency, version, checksum, clone or build failure stops the sequence with a non-zero exit; the script does not silently fall back to a manually supplied checkout or an older published renderer.
 
 The optional `--workspace <path>` selects the generated workspace (default: `.anubis-suite` under the clone). Use a custom location outside the clone, or add its location to your local ignore rules. Optional source components are selected only with `--with <name>`:
 

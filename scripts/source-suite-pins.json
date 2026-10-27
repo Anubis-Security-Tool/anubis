@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "components": {
+    "web": {
+      "repository": "https://github.com/Anubis-Security-Tool/anubis-web",
+      "commit": "60d59f59313cc6f5515a80a375ed58225303520e",
+      "packageName": "anubis-web",
+      "version": "5.7.5"
+    },
+    "resource": {
+      "repository": "https://github.com/Anubis-Security-Tool/anubis-resource",
+      "commit": "18da0874b952a3e7e4908b9cc02a548ac178efaa",
+      "packageName": "@ai-security-tool/resource",
+      "version": "2.2.3"
+    },
+    "managed-access": {
+      "repository": "https://github.com/Anubis-Security-Tool/anubis-managed-access",
+      "commit": "bff4b1d4d549cfcca288c0d687b9b8f420a5be19",
+      "packageName": "@ai-security-tool/managed-access",
+      "version": "1.0.4"
+    },
+    "sync-server-node": {
+      "repository": "https://github.com/Anubis-Security-Tool/anubis-sync-server-node",
+      "commit": "2d2be6477ccefeb0130254eaed67d74b6a6efaef",
+      "packageName": "anubis-sync-server-node",
+      "version": "1.0.0"
+    },
+    "cloudflare-sync": {
+      "repository": "https://github.com/Anubis-Security-Tool/anubis-sync-server-cloudflare",
+      "commit": "4bd2bb640b18a5f30a1ff9b3539fa3849ff7244a",
+      "packageName": "anubis-sync-server-cloudflare",
+      "version": "1.0.0"
+    },
+    "http-tunnel": {
+      "repository": "https://github.com/Anubis-Security-Tool/anubis-http-tunnel",
+      "commit": "dcc44370afb87fdf28d541f99df010bcccf93ae4",
+      "packageName": "@ai-security-tool/http-tunnel-server",
+      "version": "0.1.0"
+    },
+    "rdpjs": {
+      "repository": "https://github.com/Anubis-Security-Tool/anubis-rdpjs",
+      "commit": "35889856406df5604c5ba949baf86bbd4708a393",
+      "packageName": "@ai-security-tool/rdpjs",
+      "version": "1.0.0"
+    },
+    "site": {
+      "repository": "https://github.com/Anubis-Security-Tool/anubis-site",
+      "commit": "bb1d83250d56cfabf8013061a2dd3730377165a8",
+      "packageName": "@ai-security-tool/anubis-site",
+      "version": "1.0.0"
+    }
+  }
+}
