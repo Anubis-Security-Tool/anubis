@@ -10,11 +10,14 @@ Cross-platform desktop terminal, remote-connection and file-transfer workspace, 
 
 | Distribution or capability | What it provides | Separate setup |
 | --- | --- | --- |
-| **Desktop** | SSH/terminal, SFTP/FTP, Telnet, serial, RDP, VNC, SPICE, connection profiles, files, built-in SSH tunnels, MCP and sync client | Install the Desktop package for your OS, or build this repository |
+| **Desktop** | SSH/terminal, SFTP/FTP, Telnet, serial, RDP, VNC, SPICE, connection profiles, files, built-in SSH tunnels, MCP and sync client; Desktop artifacts also include the browser frontend for managed Web | Install the Desktop package for your OS, or build this repository |
+| **Windows machine host** | Windows NSIS package includes `AnubisHost`, which can serve the managed Web workspace | Managed link access requires the gateway, an enrolled and approved device, profile/Web authentication, and the relevant Desktop/Host process running |
 | **Standalone Web** | A separately versioned Node.js Web server and browser client | Install `anubis-web` separately, or build the Web source with the source-suite command below |
 | **Managed access** | Enrollment and approved access through the managed gateway | Requires an administrator-operated service and separate device approval |
 | **Themes, resources and sync client** | Pinned runtime/build dependencies included in source installation | No manual plugin-folder copying |
 | **MCP and VNC** | Client capabilities included in the applicable distribution | No additional MCP or VNC plugin install |
+
+The bundled browser frontend and Windows machine-host capability are distinct from the **standalone Web CLI**: the Desktop OS installer does not install or start the separately versioned Node.js Web server. Managed Web link access is available only through the configured gateway after enrollment, device approval and profile/Web authentication, while the applicable Desktop or `AnubisHost` process is running. Do not infer that other operating-system installers provide a machine service.
 
 The application has **no general dynamic plugin marketplace**. The seven PRO menu entries, including Browser Control, are placeholders rather than installable plugins or remote-browser automation.
 
