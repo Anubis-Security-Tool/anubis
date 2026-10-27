@@ -34,12 +34,11 @@ const isWinDrive = function (path) {
  */
 const run = (cmd) => {
   const { Bash } = require('node-bash')
-  const ps = new Bash({
+  return Bash.invoke(cmd, {
     executableOptions: {
       '--login': true
     }
   })
-  return ps.invokeCommand(cmd)
     .then(s => s.stdout.toString())
 }
 
