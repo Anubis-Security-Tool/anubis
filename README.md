@@ -4,7 +4,7 @@ Cross-platform desktop terminal, remote-connection and file-transfer workspace, 
 
 [Website](https://anubis.locker) · [Downloads](https://download.anubis.locker) · [Source setup](docs/SOURCE-INSTALL.md) · [Issues](https://github.com/Anubis-Security-Tool/anubis/issues)
 
-> **Published artifacts:** check the [latest Desktop release](https://github.com/Anubis-Security-Tool/anubis/releases/latest) and the [latest Web package metadata](https://npm.anubis.locker/anubis-web/latest) when choosing a version. Verify the checksum published for the exact Desktop download. A source version, source pin or successful build does not prove that an installer or Web package has been published, installed or accepted.
+> **Published artifacts:** the registry currently publishes `anubis-web@5.7.5`; check the [latest Desktop release](https://github.com/Anubis-Security-Tool/anubis/releases/latest) and [latest Web package metadata](https://npm.anubis.locker/anubis-web/latest) when choosing a version. Verify the checksum published for the exact Desktop download. A source version, source pin or successful build does not prove that an installer or Web package has been published, installed or accepted.
 
 ## What is included
 
