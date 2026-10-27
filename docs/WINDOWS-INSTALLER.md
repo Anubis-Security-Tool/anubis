@@ -339,7 +339,7 @@ The parent accepted the published **unsigned** Windows x64 installer
 `95D99BA325D06150D498107C8167B3EBDFC112E4C3420B16B8F2D7E983C7A026`,
 125371870 bytes, from immutable tag `v5.7.0` at commit
 `2aecdb8aefcee1ae57f84aa0b04670555bcb3bd4`. Release run
-[39937031578](https://github.com/Anubis-Locker/anubis/actions/runs/39937031578)
+[39937031578](https://github.com/Anubis-Security-Tool/anubis/actions/runs/39937031578)
 passed all platform jobs and published the release and own HTTPS mirrors.
 All eight package assets matched the GitHub content digests and `SHA256SUMS`;
 the installed EXE was downloaded from the verified own HTTPS mirror. No
@@ -442,7 +442,7 @@ This packaging correction does not change the native helper or managed SDK.
 ### Stable 5.7.2 production update acceptance (2026-10-23)
 
 Immutable `v5.7.2` at `57308fd18140668434361da4bb36e536c7e1e7e2` passed
-the complete [release workflow](https://github.com/Anubis-Locker/anubis/actions/runs/39957633743),
+the complete [release workflow](https://github.com/Anubis-Security-Tool/anubis/actions/runs/39957633743),
 including all platform builds and their packaged checks. All eight artifacts
 and `SHA256SUMS` matched GitHub content digests and the owned HTTPS mirrors.
 The actual **unsigned** stable installer was
@@ -524,6 +524,9 @@ previous release's compiled UI. Standalone Web must consume the corresponding
 immutable renderer publication; changing client source requires a new package
 version, never replacing an existing registry version. Source provenance is
 retained in the CI artifacts.
+
+Package preparation invokes the exact development dependency Yarn 1.22.22
+through its local Node CLI; a globally installed Yarn is not required.
 
 Desktop production and development builds use a build-owned bootstrap that
 awaits the unchanged AttachAddon loader before dynamically importing the shared

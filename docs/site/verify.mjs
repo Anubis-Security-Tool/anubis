@@ -194,7 +194,7 @@ export async function verifySite ({ output, dependencyRoot = repositoryRoot, rec
     for (const [route, parsed] of html) {
       for (const href of parsed.links) {
         if (/^https?:|^mailto:/i.test(href)) {
-          if (href.includes('github.com/Anubis-Locker/anubis/blob/')) {
+          if (href.includes('github.com/Anubis-Security-Tool/anubis/blob/')) {
             assert(href.startsWith(sourceBase), `Unpinned source reference: ${href}`)
           }
           continue

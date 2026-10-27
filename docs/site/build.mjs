@@ -6,7 +6,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 export const sourceRef = 'ac1d0faaab2ae1fa1ed085d9ff462d2b6dea0b11'
-export const sourceBase = `https://github.com/Anubis-Locker/anubis/blob/${sourceRef}/`
+export const sourceBase = `https://github.com/Anubis-Security-Tool/anubis/blob/${sourceRef}/`
 export const siteOrigin = 'https://docs.anubis.locker'
 export const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url))
 const siteDirectory = fileURLToPath(new URL('.', import.meta.url))
@@ -223,7 +223,7 @@ export async function buildSite ({ output, dependencyRoot = repositoryRoot }) {
         h('header', { className: 'site-header' },
           h('a', { className: 'brand', href: canonicalPath('Home') }, 'Anubis-Security-Tool'),
           h('span', null, 'Документация'),
-          h('a', { href: 'https://github.com/Anubis-Locker/anubis' }, 'GitHub')
+          h('a', { href: 'https://github.com/Anubis-Security-Tool/anubis' }, 'GitHub')
         ),
         h('div', { className: 'layout' },
           h('nav', { className: 'sidebar', 'aria-label': 'Разделы руководства', dangerouslySetInnerHTML: { __html: navigation } }),
@@ -237,7 +237,7 @@ export async function buildSite ({ output, dependencyRoot = repositoryRoot }) {
               h('p', null, 'Документация не подтверждает установку или живую приёмку нового runtime.'),
               h('a', { href: sourceUrl(`docs/wiki/${notFound ? 'Home' : page}.md`) }, 'Исходник страницы'),
               ' · ',
-              h('a', { href: `https://github.com/Anubis-Locker/anubis/tree/${sourceRef}` }, `Публичный срез ${sourceRef.slice(0, 7)}`)
+              h('a', { href: `https://github.com/Anubis-Security-Tool/anubis/tree/${sourceRef}` }, `Публичный срез ${sourceRef.slice(0, 7)}`)
             )
           )
         )
@@ -277,7 +277,7 @@ export async function buildSite ({ output, dependencyRoot = repositoryRoot }) {
   const manifest = {
     schemaVersion: 1,
     sourceRef,
-    sourceRepository: 'https://github.com/Anubis-Locker/anubis',
+    sourceRepository: 'https://github.com/Anubis-Security-Tool/anubis',
     siteOrigin,
     articleCount: pages.size,
     legacySlugs,
