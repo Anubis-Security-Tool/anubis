@@ -7,7 +7,7 @@ const zlib = require('node:zlib')
 const crypto = require('node:crypto')
 const { pins, stageSdk, nativeViteConfig, prepareReleaseApp } = require('../../build/bin/release-source-inputs')
 const { patchTarget, HELPER_SHA256 } = require('../../build/bin/nsis/release-support')
-const { verifyBlockmap, verifyRuntimeInventory } = require('../../build/bin/nsis/build-release')
+const { verifyBlockmap, verifyRuntimeInventory, verifySourceAsar } = require('../../build/bin/nsis/build-release')
 const { assembleWebClient } = require('../../build/bin/assemble-web-client')
 const { pathToFileURL } = require('node:url')
 const { spawnSync } = require('node:child_process')
@@ -199,6 +199,84 @@ test('NSIS inventories require the exact runtime and every actual unpacked membe
     fs.unlinkSync(path.join(app, required[1]))
     await pack()
     assert.throws(verify, /Missing unpacked Windows native module/)
+  } finally { fs.rmSync(temporary, { recursive: true, force: true }) }
+})
+
+test('NSIS source verification uses the actual SDK producer metadata transform and exact source/license bytes', async () => {
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'anubis-nsis-sdk-'))
+  try {
+    const app = path.join(temporary, 'work/app')
+    const runtime = path.join(temporary, 'runtime')
+    const sdk = path.join(temporary, '.release-inputs/sdk')
+    const name = '@ai-security-tool/managed-access'
+    const write = (base, relative, bytes) => {
+      const file = path.join(base, relative)
+      fs.mkdirSync(path.dirname(file), { recursive: true })
+      fs.writeFileSync(file, bytes)
+    }
+    write(temporary, 'package.json', JSON.stringify({ version: '5.7.6' }))
+    write(app, 'package.json', JSON.stringify({ name: 'anubis', version: '5.7.6', dependencies: { [name]: '1.0.4', ws: '8.18.3' } }))
+    for (const base of ['src/app', 'work/app']) write(temporary, `${base}/app.js`, 'unchanged desktop source')
+    for (const relative of ['src/common/brand.config.js', 'work/app/common/brand.config.js']) write(temporary, relative, 'unchanged brand source')
+    write(app, 'assets/entry.js', 'unchanged native renderer')
+    write(app, 'browser-assets/entry.js', 'unchanged browser renderer')
+    const metadata = {
+      name,
+      version: '1.0.4',
+      main: 'index.js',
+      license: 'MIT',
+      files: ['index.js'],
+      dependencies: { ws: '8.18.3' },
+      engines: { node: '>=18' },
+      bugs: { url: 'https://github.com/Anubis-Security-Tool/anubis-managed-access/issues' },
+      homepage: 'https://anubis.locker',
+      scripts: { test: 'node --test' },
+      keywords: ['managed']
+    }
+    const originalMetadata = JSON.stringify(metadata, null, 2) + '\n'
+    write(sdk, 'package.json', originalMetadata)
+    write(sdk, 'index.js', 'unchanged SDK source')
+    write(sdk, 'LICENSE', 'Complete original SDK license fixture\r\n')
+    const staged = path.join(app, 'node_modules', name)
+    stageSdk(staged, sdk)
+    const { createTransformer } = require('app-builder-lib/out/fileTransformer')
+    const produced = JSON.parse(await createTransformer(app, {})(path.join(staged, 'package.json')))
+    assert.equal(produced.bugs, undefined)
+    assert.equal(produced.scripts, undefined)
+    assert.equal(produced.keywords, undefined)
+    assert.equal(produced.homepage, metadata.homepage)
+    assert.equal(produced.license, metadata.license)
+    const archive = path.join(runtime, 'resources/app.asar')
+    fs.mkdirSync(path.dirname(archive), { recursive: true })
+    const asar = require('@electron/asar')
+    const pack = async (value = produced) => {
+      write(staged, 'package.json', JSON.stringify(value))
+      try { await finished(await asar.createPackage(app, archive)) } finally { write(staged, 'package.json', originalMetadata) }
+    }
+    const verify = () => verifySourceAsar(temporary, runtime, {})
+    await pack()
+    await verify()
+    for (const changed of [
+      { ...produced, version: '1.0.3' },
+      { ...produced, license: 'changed' },
+      { ...produced, homepage: 'https://unrelated.invalid' },
+      { ...produced, dependencies: { ws: '0.0.0' } },
+      { ...produced, bugs: metadata.bugs }
+    ]) {
+      await pack(changed)
+      await assert.rejects(verify)
+    }
+    await pack()
+    write(staged, 'package.json', JSON.stringify({ ...metadata, homepage: 'changed' }))
+    await assert.rejects(verify, /Staged SDK metadata differs/)
+    write(staged, 'package.json', originalMetadata)
+    for (const file of ['index.js', 'LICENSE']) {
+      const original = fs.readFileSync(path.join(staged, file))
+      write(staged, file, Buffer.alloc(original.length))
+      await pack()
+      write(staged, file, original)
+      await assert.rejects(verify, /Pinned SDK source changed/)
+    }
   } finally { fs.rmSync(temporary, { recursive: true, force: true }) }
 })
 

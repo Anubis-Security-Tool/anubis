@@ -45,7 +45,7 @@
     },
     "site": {
       "repository": "https://github.com/Anubis-Security-Tool/anubis-site",
-      "commit": "4762dacc3d2c30bc831d9821f7e5656681d7fe7b",
+      "commit": "124a735ce0aa97cd4c4a7ac1466bc5678ce4d544",
       "packageName": "@ai-security-tool/anubis-site",
       "version": "1.0.0"
     }

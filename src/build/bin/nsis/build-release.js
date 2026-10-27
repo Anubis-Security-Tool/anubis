@@ -91,9 +91,10 @@ function verifyEmbedded (bytes, archive, uninstaller) {
   assert.equal(uninstallers, 1)
 }
 
-function verifySourceAsar (root, runtime) {
+async function verifySourceAsar (root, runtime, config) {
   const asar = require('@electron/asar')
   const archive = path.join(runtime, 'resources/app.asar')
+  asar.uncache(archive)
   const get = relative => asar.extractFile(archive, relative)
   const pack = JSON.parse(get('package.json'))
   const sourcePack = JSON.parse(fs.readFileSync(path.join(root, 'package.json')))
@@ -115,12 +116,19 @@ function verifySourceAsar (root, runtime) {
   }
   assert(get('common/brand.config.js').equals(fs.readFileSync(path.join(root, 'src/common/brand.config.js'))))
   const sdk = path.join(root, '.release-inputs/sdk')
-  const sdkPack = JSON.parse(fs.readFileSync(path.join(sdk, 'package.json')))
+  const sdkMetadata = fs.readFileSync(path.join(sdk, 'package.json'))
+  const sdkPack = JSON.parse(sdkMetadata)
   assert.equal(pack.dependencies[sdkPack.name], sdkPack.version)
-  const expectedSdkPack = { ...sdkPack }
-  delete expectedSdkPack.scripts
+  const stagedSdkPackage = path.join(root, 'work/app/node_modules', sdkPack.name, 'package.json')
+  assert(fs.readFileSync(stagedSdkPackage).equals(sdkMetadata), 'Staged SDK metadata differs from its pinned source')
+  const { createTransformer } = require('app-builder-lib/out/fileTransformer')
+  const transformed = await createTransformer(path.join(root, 'work/app'), config)(stagedSdkPackage)
+  assert(transformed === null || typeof transformed === 'string', 'SDK metadata producer transform failed')
+  const expectedSdkPack = transformed === null ? sdkPack : JSON.parse(transformed)
   assert.deepEqual(JSON.parse(get(path.join('node_modules', sdkPack.name, 'package.json'))), expectedSdkPack)
-  for (const file of sdkPack.files) assert(get(path.join('node_modules', sdkPack.name, file)).equals(fs.readFileSync(path.join(sdk, file))))
+  for (const file of new Set([...sdkPack.files, 'LICENSE'])) {
+    assert(get(path.join('node_modules', sdkPack.name, file)).equals(fs.readFileSync(path.join(sdk, file))), `Pinned SDK source changed: ${file}`)
+  }
 }
 
 function verifyRuntimeInventory (runtime, rows) {
@@ -247,7 +255,7 @@ async function main () {
       console.log(`NSIS runtime inventory: ${runtimeRows.length} files`)
       assert(!runtimeRows.some(row => path.basename(row.path) === 'anubis-machine-install.json'))
       verifyRuntimeInventory(runtime, runtimeRows)
-      verifySourceAsar(root, runtime)
+      await verifySourceAsar(root, runtime, config)
       await checkMembers(archivePath)
       fs.writeFileSync(path.join(evidence, 'archive-gate.json'), JSON.stringify({ archive, defines, commands, runtimeRows }, null, 2), { flag: 'wx' })
       return false
@@ -303,4 +311,4 @@ async function main () {
 }
 
 if (require.main === module) main().catch(error => { console.error(error); process.exit(1) })
-module.exports = { verifyBlockmap, streamMember, verifyCrc, verifyEmbedded, verifyRuntimeInventory, main }
+module.exports = { verifyBlockmap, streamMember, verifyCrc, verifyEmbedded, verifyRuntimeInventory, verifySourceAsar, main }
