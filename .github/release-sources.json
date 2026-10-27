@@ -6,7 +6,7 @@
   },
   "web": {
     "repository": "Anubis-Security-Tool/anubis-web",
-    "commit": "1298e0ef7b628ec90eafed7b075958a0371489fb"
+    "commit": "60d59f59313cc6f5515a80a375ed58225303520e"
   },
   "sdk": {
     "repository": "Anubis-Security-Tool/anubis-managed-access",

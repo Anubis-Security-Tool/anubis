@@ -2,6 +2,11 @@ name: protocol-tests
 
 on:
   workflow_dispatch:
+    inputs:
+      source_suite_smoke:
+        description: Build a fresh source suite and verify local Web and Sync startup
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths:
@@ -42,6 +47,48 @@ permissions:
   contents: read
 
 jobs:
+  source-suite-smoke:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.source_suite_smoke }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      NPM_REGISTRY_URL: https://npm.anubis.locker/
+      npm_config_cache: ${{ runner.temp }}/anubis-source-suite-npm-cache
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      ANUBIS_MANAGED_ACCESS: '0'
+      ANUBIS_MANAGED_URL: ''
+      ANUBIS_SOURCE_SUITE_SMOKE_WORKSPACE: ${{ runner.temp }}/anubis-source-suite
+      ANUBIS_SOURCE_SUITE_SMOKE_RECEIPT: ${{ runner.temp }}/anubis-source-suite-smoke.json
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install source-build prerequisites
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends build-essential libudev-dev
+          npm install --global yarn@1.22.22 --registry=https://npm.anubis.locker/ --no-audit --no-fund
+      - name: Install and build the actual fresh source suite
+        run: |
+          test ! -e node_modules
+          test ! -e work
+          test ! -e "$ANUBIS_SOURCE_SUITE_SMOKE_WORKSPACE"
+          timeout --signal=TERM --kill-after=30s 25m \
+            node scripts/source-suite.js install --workspace "$ANUBIS_SOURCE_SUITE_SMOKE_WORKSPACE"
+      - name: Verify isolated Web and authenticated non-writing Sync readiness
+        run: node src/test/integration/source-suite-smoke.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-suite-smoke
+          path: ${{ runner.temp }}/anubis-source-suite-smoke.json
+          if-no-files-found: error
+
   loopback:
     strategy:
       fail-fast: false
