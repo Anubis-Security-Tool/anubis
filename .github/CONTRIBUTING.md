@@ -1,49 +1,106 @@
 # CONTRIBUTING
 
-> First off, thank you for considering contributing to electerm.
+> First off, thank you for considering contributing to **Anubis Security Tool**.
 
-> electerm is an open source project and I love to receive contributions from our community — you! There are many ways to contribute, from writing tutorials or blog posts, improving the documentation, submitting bug reports and feature requests or writing code which can be incorporated into electerm itself.
+Anubis Security Tool is an open-source security project built for cybersecurity research, vulnerability analysis, system administration, and intelligent automation. I welcome contributions from the community — whether you're fixing a bug, improving documentation, suggesting a feature, or helping develop the Anubis ecosystem.
 
-> Working on your first Pull Request? You can learn how from this *free* series, [How to Contribute to an Open Source Project on GitHub](https://egghead.io/series/how-to-contribute-to-an-open-source-project-on-github).
+Every contribution matters. You don't have to be an experienced developer to help make the project better.
 
-Basic process:
+There are many ways to contribute:
+- 🐛 Report bugs and unexpected behavior.
+- 💡 Suggest improvements and new features.
+- 📚 Improve documentation, guides, and examples.
+- 🔧 Fix bugs and improve existing functionality.
+- 🧩 Contribute to Anubis modules and integrations.
+- 🔒 Help improve security, reliability, and cross-platform compatibility.
 
-> 1. Create your own fork of the code
-> 2. Do the changes in your fork
-> 3. If you like the change and think the project could use it:
-    * Be sure you have followed the code style for the project by running `npm run lint`.
-    * Send a pull request
+## Getting Started
 
-> Want to report a issue or give some suggestions?
-[Submit a issue](https://github.com/electerm/electerm/issues/new)
+Working on your first Pull Request? Here's the basic workflow.
+
+1. **Fork** the repository.
+2. **Clone** your fork to your local machine.
+3. **Create a branch** for your changes.
+4. **Make your changes** and test them locally.
+5. **Check the code style** by running `npm run lint`.
+6. **Commit your changes** with a clear and descriptive message.
+7. **Open a Pull Request** against the main repository and explain what you've changed and why.
+
+### Development Setup
+
+Anubis Core requires **Node.js 24.x** and the project's dependencies.
+
+```bash
+git clone https://github.com/Anubis-Security-Tool/anubis.git
+cd anubis
+npm install --legacy-peer-deps
+npm start
+```
+
+In a separate terminal, start the application:
+
+```bash
+npm run app
+```
+
+Before submitting your changes, run the relevant checks:
+
+```bash
+npm run lint
+npm run test-unit-ci
+```
+
+See the development documentation for additional build instructions and testing procedures.
 
 ## Pull Request Rules
 
-> * **One PR resolves one issue only.** Every pull request must be focused on a single issue. Do not bundle multiple unrelated issues or features into one PR — split them into separate PRs so each can be reviewed and merged independently.
-> * **Do not submit PRs related to design decisions.** If you want to propose a new feature, UI/UX change, behavior change, or any design-related decision, please open an issue first to discuss it instead of sending a pull request. PRs that contain design decisions without a prior agreed issue may be closed.
+To keep the project maintainable and make reviews easier, please follow these rules:
 
----
+- **One PR, one issue.** Each Pull Request should address a single bug, improvement, or agreed feature. Keep unrelated changes in separate PRs.
+- **Discuss major changes first.** For new features, UI/UX changes, architectural decisions, or changes to existing behavior, open an issue before submitting a PR. This gives us a chance to discuss the approach before implementation.
+- **Keep changes focused.** Avoid unrelated refactoring, formatting changes, or modifications to files that are not necessary for your contribution.
+- **Test your changes.** Run the relevant checks and include details about what you tested.
+- **Describe your changes clearly.** Explain the problem, your solution, and any relevant limitations or compatibility considerations.
+- **Respect the existing architecture.** Follow the project's conventions and avoid breaking existing functionality across supported platforms.
+- **Don't include secrets.** Never commit API keys, credentials, private certificates, personal data, or other sensitive information.
 
-# 贡献指南
+Pull Requests that introduce significant design or behavior changes without prior discussion may be asked to be revised or closed.
 
-> 首先，感谢你考虑为 electerm 做出贡献。
+## Reporting Bugs & Suggesting Features
 
-> electerm 是一个开源项目，我们非常欢迎来自社区的贡献 —— 包括你！你可以通过很多方式参与进来：撰写教程或博客、完善文档、提交缺陷报告与功能建议，或是编写能够合入 electerm 的代码。
+Found a bug or have an idea for improving Anubis?
 
-> 正在提交你的第一个 Pull Request？你可以从这个*免费*系列课程中学习：[如何在 GitHub 上为开源项目做贡献](https://egghead.io/series/how-to-contribute-to-an-open-source-project-on-github)。
+- **Bug reports:** [Open an issue](https://github.com/Anubis-Security-Tool/anubis/issues/new).
+- **Feature requests:** Open an issue describing the problem, the proposed solution, and why it would be useful.
+- **Questions and discussions:** [Join the discussions](https://github.com/Anubis-Security-Tool/anubis/discussions).
 
-基本流程：
+Before opening a new issue, please check whether a similar report or discussion already exists.
 
-> 1. 创建你自己的代码仓库 Fork
-> 2. 在你的 Fork 中进行修改
-> 3. 如果你觉得这个改动不错，并且认为项目会需要它：
-    * 请务必先运行 `npm run lint`，确保代码风格符合项目规范。
-    * 提交一个 Pull Request
+When reporting a bug, include as much relevant information as possible:
+- Operating system and version.
+- Anubis version.
+- Steps to reproduce the issue.
+- Expected behavior and actual behavior.
+- Relevant logs or error messages, with sensitive information removed.
 
-> 想要报告问题或提出建议？
-[提交一个 Issue](https://github.com/electerm/electerm/issues/new)
+## Security Contributions
 
-## Pull Request 规则
+Security improvements are especially welcome.
 
-> * **一个 PR 只解决一个问题。** 每个 Pull Request 都必须聚焦于单一问题，不要将多个不相关的问题或功能合并到同一个 PR 中 —— 请将它们拆分为多个独立的 PR，以便各自能够被独立评审和合并。
-> * **不要提交与设计决策相关的 PR。** 如果你想提出新功能、UI/UX 改动、行为变更或任何涉及设计决策的内容，请先开一个 Issue 进行讨论，而不是直接提交 Pull Request。未经事先达成一致 Issue 而包含设计决策的 PR 可能会被关闭。
+If you discover a potential vulnerability, please avoid publishing sensitive exploit details in a public issue before the problem has been assessed. Use the project's designated private security reporting channel, if available.
+
+Contributions should support authorized security testing, defensive research, vulnerability analysis, and responsible disclosure.
+
+## Contributing to the Anubis Ecosystem
+
+Anubis is designed as an evolving ecosystem of open-source security tools and modules. Contributions that improve interoperability, documentation, reliability, and cross-platform support are welcome.
+
+If your contribution targets a separate Anubis module or related repository, submit it to the appropriate repository whenever possible.
+
+## Final Note
+
+Anubis Security Tool grows through the people who use it, test it, report problems, and contribute improvements.
+
+Thank you for helping make Anubis more reliable, capable, and useful for the open-source security community.
+
+**— Anubis Security Tool**
