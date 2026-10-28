@@ -1,6 +1,11 @@
-# 🛡️ Anubis Security Tool
+
 <img width="100%" alt="AI Security Tool Banner" src="/docs/back-logo.png" style="max-width: 100%;">
-### Open-Source Security. Intelligent Automation. Total Control.
+<hr>
+🛡️ Anubis Security Tool
+
+Open-Source Security. Intelligent Automation. Total Control.
+
+Anubis Security Tool is an open-source, cross-platform workspace for cybersecurity research, remote access, system administration, and security automation.
 
 **Anubis Security Tool** is an open-source, cross-platform workspace for cybersecurity research, remote access, system administration, and security automation.
 
