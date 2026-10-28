@@ -1,18 +1,38 @@
-## **Reporting Security Issues**
+# 🛡️ Reporting Security Issues
 
+The security of **Anubis Security Tool** and its users is a priority. We appreciate responsible security research and welcome reports that help us identify and address vulnerabilities.
 
-If you believe you have found a security vulnerability in electerm, we encourage you to report it immediately.
+## 🔒 How to Report a Vulnerability
 
-Please report it through GitHub's private vulnerability reporting:
-https://github.com/electerm/electerm/security/advisories/new
+If you discover a potential security vulnerability, please report it privately through one of the following channels:
 
-We review all legitimate reports and work quickly to fix any issues to ensure the safety, reliability, and stability of our services
+- 🐛 **GitHub Security Advisories:** [Submit a private vulnerability report](https://github.com/Anubis-Security-Tool/anubis/security/advisories/new)
+- 📧 **Email:** [admin@anubis.locker](mailto:admin@anubis.locker)
 
-如果您认为在 electerm 中发现了一个安全漏洞，我们鼓励您立即报告。
+When submitting a report, please include:
 
-请通过 GitHub 私密漏洞报告提交：
-https://github.com/electerm/electerm/security/advisories/new
+- 📝 A clear description of the vulnerability.
+- 🔄 Steps to reproduce the issue.
+- 💥 Potential impact and affected components.
+- 📎 Proof-of-concept code or supporting evidence, if available.
 
-我们会审查所有合理的报告，并尽快修复相关问题，以确保我们服务的安全性、可靠性和稳定性。
+## ⚠️ Responsible Disclosure
 
-email: zxdong@gmail.com
+To help protect users, please follow these guidelines:
+
+- 🔐 **Do not publicly disclose** the vulnerability before the maintainers have had a reasonable opportunity to investigate and address it.
+- 🚫 Do not exploit vulnerabilities beyond what is necessary to verify their existence.
+- 🧑‍⚖️ Do not access, modify, or expose other users' data.
+- 🤝 Allow the maintainers reasonable time to assess the report and coordinate a fix.
+
+## 📬 What Happens Next?
+
+After receiving your report, the maintainers will review the findings, assess the potential impact, and work toward an appropriate resolution.
+
+We'll do our best to communicate with you during the investigation and coordinate any necessary fixes or disclosures.
+
+## 🙏 Thank You
+
+Thank you for helping make **Anubis Security Tool** safer for everyone. Your responsible research and contributions to the security community are greatly appreciated.
+
+**Stay vigilant. Stay secure. 🛡️**
