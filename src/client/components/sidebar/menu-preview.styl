@@ -4,16 +4,83 @@
   .preview-brand
     display flex
     align-items center
+    justify-content space-between
+    gap 6px
     flex-shrink 0
     height 64px
-    padding 0 16px
+    padding 0 10px 0 14px
     border-bottom 1px solid var(--border)
+    .menu-control
+      display inline-flex
+      align-items center
+      gap 9px
+      min-width 0
+      flex 1
+      padding 0
+      border 0
+      background transparent
+      color var(--text)
+      cursor pointer
+      &:focus-visible
+        outline 2px solid var(--primary)
+        outline-offset 2px
+    .menu-logo-a
+      flex-shrink 0
+      width 30px
+      height 30px
+      border-radius 8px
+      object-fit cover
+    .sidebar-brand-text
+      display flex
+      flex-direction column
+      justify-content center
+      min-width 0
+      text-align left
+      line-height 1.2
     .sidebar-brand-name
       font-size 14px
-      line-height 20px
+      line-height 18px
+      font-weight 600
+      color var(--text-light)
       white-space nowrap
       overflow hidden
       text-overflow ellipsis
+    .sidebar-brand-sub
+      font-size 10px
+      line-height 13px
+      color var(--text-dark)
+      white-space nowrap
+      overflow hidden
+      text-overflow ellipsis
+    .preview-brand-right
+      display flex
+      align-items center
+      flex-shrink 0
+      margin-left auto
+    .preview-version-badge
+      display inline-flex
+      align-items center
+      gap 4px
+      padding 3px 8px
+      border 1px solid var(--border)
+      border-radius 999px
+      background transparent
+      color var(--text-dark)
+      font-size 11px
+      line-height 15px
+      white-space nowrap
+      cursor pointer
+      transition border-color .15s, color .15s, background .15s
+      > svg
+        color var(--success)
+        flex-shrink 0
+      &:hover
+        border-color var(--success)
+        color var(--text)
+        background var(--main-light)
+      &:focus-visible
+        outline 2px solid var(--primary)
+        outline-offset 1px
   .preview-navigation
     flex 1
     min-height 0
@@ -39,14 +106,16 @@
       display flex
       align-items center
       gap 10px
-      min-height 40px
-      padding 10px 12px
+      min-height 36px
+      padding 8px 12px
       border-radius 8px
       list-style none
-      color var(--text)
-      font-size 14px
-      font-weight 600
-      line-height 20px
+      color var(--text-dark)
+      font-size 11px
+      font-weight 700
+      letter-spacing .07em
+      line-height 16px
+      text-transform uppercase
       cursor pointer
       &:hover
         background var(--main-light)
@@ -102,6 +171,49 @@
     &:disabled
       opacity .45
       cursor not-allowed
+    .preview-label
+      flex 1
+      min-width 0
+      overflow hidden
+      text-overflow ellipsis
+      white-space nowrap
+    .preview-item-text
+      display flex
+      flex-direction column
+      justify-content center
+      flex 1
+      min-width 0
+      white-space normal
+      .preview-item-name
+        overflow hidden
+        text-overflow ellipsis
+        white-space nowrap
+        line-height 18px
+      .preview-item-sub
+        overflow hidden
+        text-overflow ellipsis
+        white-space nowrap
+        color var(--text-dark)
+        font-size 11px
+        line-height 14px
+    &.has-sub
+      align-items center
+    .preview-pro-tag
+      flex-shrink 0
+      margin-left auto
+      padding 1px 6px
+      border-radius 4px
+      background var(--main-light)
+      color var(--primary)
+      font-size 9px
+      font-weight 700
+      letter-spacing .04em
+      line-height 14px
+      text-transform uppercase
+    &.pro:hover
+      .preview-pro-tag
+        background var(--primary)
+        color var(--main-dark)
   .preview-footer
     display flex
     flex-direction column
@@ -125,9 +237,15 @@
   &.preview-compact
     .preview-label
     .preview-chevron
+    .preview-pro-tag
+    .sidebar-brand-text
       display none
     .preview-brand
       padding 0 5px
+      justify-content center
+    .preview-version-badge
+      padding 4px
+      gap 0
     .preview-navigation
       padding 10px 5px
     .preview-group[open]::before

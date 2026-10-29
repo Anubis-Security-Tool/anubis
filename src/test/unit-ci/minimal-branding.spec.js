@@ -83,10 +83,12 @@ test('loading artwork stays local and static; shared logo styles preserve source
   assert.match(css, /\.sidebar \.menu-logo\s*\{[^}]*background: transparent;/)
 })
 
-test('menu uses the shared local app asset without changing menu actions', () => {
+test('menu uses the real brand icon asset without changing menu actions', () => {
   const source = read('components/sys-menu/menu-btn.jsx')
-  assert.match(source, /import \{ logoPath1 \} from '\.\.\/\.\.\/common\/constants'/)
-  assert.match(source, /<img src=\{logoPath1\} width=\{24\} height=\{24\} alt=''/)
+  assert.match(source, /import \{ logoPathA \} from '\.\.\/\.\.\/common\/constants'/)
+  assert.match(source, /<img src=\{logoPathA\} className='menu-logo menu-logo-a'/)
+  assert.doesNotMatch(source, /menu-logo-letter/)
+  assert.match(source, /<span className='sidebar-brand-name'>Anubis Core<\/span>/)
+  assert.match(source, /<span className='sidebar-brand-sub'>AI Security Toolkit<\/span>/)
   assert.match(source, /content: this\.renderMenu\(\)/)
-  assert.match(read('common/constants.js'), /logoPath1Ref from '@brand-res\/res\/imgs\/electerm-round-128x128\.png'/)
 })

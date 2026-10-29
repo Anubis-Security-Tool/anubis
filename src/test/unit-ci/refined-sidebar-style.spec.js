@@ -10,7 +10,7 @@ const css = stylus.render(fs.readFileSync(file, 'utf8'))
 test('sidebar has readable root rows and a visually nested item hierarchy', () => {
   assert.match(css, /\.preview-brand\s*\{[^}]*height: 64px/)
   assert.match(css, /\.preview-brand \.sidebar-brand-name\s*\{[^}]*font-size: 14px/)
-  assert.match(css, /\.preview-group summary\s*\{[^}]*min-height: 40px;[^}]*font-size: 14px/)
+  assert.match(css, /\.preview-group summary\s*\{[^}]*min-height: 36px;[^}]*font-size: 11px;[^}]*text-transform: uppercase/)
   assert.match(css, /\.preview-group\[open\]::before\s*\{[^}]*border-left: 1px solid var\(--border\);[^}]*pointer-events: none/)
   assert.match(css, /\.preview-menu-item\s*\{[^}]*width: calc\(100% - 28px\);[^}]*min-height: 40px;[^}]*margin: 1px 0 1px 28px/)
   assert.match(css, /\.preview-menu-item > svg\s*\{[^}]*width: 20px;[^}]*height: 20px;[^}]*stroke-width: 1\.75/)

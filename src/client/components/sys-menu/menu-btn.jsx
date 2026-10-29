@@ -6,10 +6,10 @@ import { PureComponent } from 'react'
 import {
   Popover
 } from 'antd'
-import { logoPath1 } from '../../common/constants'
-import { shortcutDescExtend } from '../shortcuts/shortcut-handler.js'
 import MenuRender from './sys-menu.jsx'
+import { shortcutDescExtend } from '../shortcuts/shortcut-handler.js'
 import { refsStatic } from '../common/ref.js'
+import { logoPathA } from '../../common/constants'
 
 const e = window.translate
 
@@ -232,13 +232,11 @@ class MenuBtn extends PureComponent {
         <button
           {...pops}
         >
-          <span
-            className='menu-logo'
-            aria-hidden='true'
-          >
-            <img src={logoPath1} width={24} height={24} alt='' />
+          <img src={logoPathA} className='menu-logo menu-logo-a' alt='Anubis' />
+          <span className='sidebar-brand-text'>
+            <span className='sidebar-brand-name'>Anubis Core</span>
+            <span className='sidebar-brand-sub'>AI Security Toolkit</span>
           </span>
-          <span className='sidebar-brand-name'>{window.et.brand.name}</span>
         </button>
       </Popover>
     )

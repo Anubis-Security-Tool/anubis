@@ -6,6 +6,7 @@ import { defaultThemeId, defaultThemeLightId } from './theme-defaults.js'
 import logoPath1Ref from '@brand-res/res/imgs/electerm-round-128x128.png'
 import logoPath2Ref from '@brand-res/res/imgs/electerm.png'
 import logoPath3Ref from '@brand-res/res/imgs/electerm-watermark.png'
+import logoPathARef from '@brand-res/res/imgs/anubis-a-512.png'
 export const packInfo = typeof window.et.packInfo === 'undefined' ? window.pre.packInfo : window.et.packInfo
 // brand config injected into index.html (src/common/brand.config.js)
 export const brand = window.et.brand
@@ -22,6 +23,7 @@ const buildConst = (props) => {
 export const logoPath1 = logoPath1Ref.replace(/^\//, '') + '?ver=' + packInfo.version
 export const logoPath2 = logoPath2Ref.replace(/^\//, '') + '?ver=' + packInfo.version
 export const logoPath3 = logoPath3Ref.replace(/^\//, '') + '?ver=' + packInfo.version
+export const logoPathA = logoPathARef.replace(/^\//, '') + '?ver=' + packInfo.version
 export const maxEditFileSize = 1024 * 3000
 export const defaultBookmarkGroupId = 'default'
 export const newBookmarkIdPrefix = 'new-bookmark'

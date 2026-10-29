@@ -11,6 +11,8 @@ const settings = 'components/setting-panel/setting-left-sidebar-icons.jsx'
 const settingMap = { setting: 'setting', widgets: 'widgets' }
 const modals = { setting: 'setting' }
 const site = 'https://anubis.locker'
+const docs = 'https://docs.anubis.locker'
+const infoTabs = { os: 'os' }
 
 async function harness (file, store = {}, extra = {}) {
   const { transformSync } = await import('rolldown/experimental')
@@ -40,7 +42,7 @@ async function harness (file, store = {}, extra = {}) {
   let state
   let cleanup
   const effects = []
-  const window = { store, translate: key => key, et: {} }
+  const window = { store, translate: key => key, et: {}, pre: { openExternal: () => {} } }
   const Select = Object.assign(() => null, { displayName: 'Select', Option: 'Option' })
   const dependencies = {
     react: {
@@ -56,7 +58,7 @@ async function harness (file, store = {}, extra = {}) {
     antd: { Modal: 'Modal', Tooltip: 'Tooltip', Popover: 'Popover', Badge: 'Badge', Select },
     'lucide-react': new Proxy({}, { get: (_, key) => key }),
     '../icons/ui-icons': new Proxy({}, { get: (_, key) => key }),
-    '../../common/constants': { brand: { domains: { site } }, modals, settingMap },
+    '../../common/constants': { brand: { domains: { site, docs } }, modals, settingMap, infoTabs },
     '../../common/ai-feature': { isAIDisabled: () => !!window.et.disableAIFeature },
     '../../common/left-sidebar-icon-defs': defs,
     '../../common/has-active-input': { default: () => false },
@@ -64,6 +66,7 @@ async function harness (file, store = {}, extra = {}) {
     '../common/external-link': { default: 'ExternalLink' },
     '../tabs/quick-connect': { default: 'QuickConnect' },
     './menu-preview': { default: 'GroupedSidebarMenu' },
+    './upgrade-modal': { default: 'UpgradeModal' },
     './transfer-list': { default: 'TransferList' },
     './side-icon': { default: 'SideIcon' },
     './sidebar-panel': { default: 'SideBarPanel' },
@@ -127,15 +130,21 @@ function makeStore () {
 test('approved default groups are exact, with no extra legacy or preview entries', async () => {
   const { store } = makeStore()
   const h = await harness(sidebar + 'menu-preview.jsx', store)
-  const expected = [
-    { label: 'Tools', items: ['Bookmarks', 'Quick connect', 'Setting sync', 'AI Agents', 'Widgets'] },
-    { label: 'PRO Features', items: ['Community', 'Plugin Store', 'Automation', 'DLL Scanner', 'CVE Scanner', 'Crypto Miner', 'Browser Control'] },
-    { label: 'Other', items: ['Setting', 'About', 'Hide'] }
+  const base = [
+    { label: 'Console', items: ['System Info', 'Bookmarks', 'Quick connect', 'Setting sync', 'Widgets', 'Setting'] },
+    { label: 'Arsenal', items: ['Plugin Store', 'Anubis Oracle — AI Agents', 'Anubis Osiris — Automation', 'Anubis Scarab — DLL Scanner', 'Anubis Aegis — CVE Scanner', 'Browser'] },
+    { label: 'System', items: ['About', 'FAQ', 'Hide'] }
   ]
-  assert.deepEqual(labels(h.render()), expected)
+  assert.deepEqual(labels(h.render()), base)
   const defaults = fs.readFileSync(path.join(root, 'common/default-setting.js'), 'utf8')
   store.config.leftSideBarIcons = vm.runInNewContext(defaults.match(/leftSideBarIcons:\s*(\[[\s\S]*?\])/)[1])
-  assert.deepEqual(labels(h.render()), expected)
+  // the saved default order is applied to the configurable Console entries
+  const configured = [
+    { label: 'Console', items: ['System Info', 'Bookmarks', 'Quick connect', 'Setting', 'Setting sync', 'Widgets'] },
+    base[1],
+    base[2]
+  ]
+  assert.deepEqual(labels(h.render()), configured)
   assert.doesNotMatch(fs.readFileSync(path.join(root, sidebar + 'menu-preview.jsx'), 'utf8'), /Local preview|Menu preview/)
 })
 
@@ -144,23 +153,24 @@ test('live custom ordering and empty selection work without mutating saved confi
   const h = await harness(sidebar + 'menu-preview.jsx', store)
   const ids = ['widgets', 'setting', 'settingSync', 'bookmarks', 'widgets', 'terminalThemes', 'unknown']
   store.config.leftSideBarIcons = ids
-  assert.deepEqual(labels(h.render())[0].items, ['Widgets', 'Setting sync', 'Bookmarks', 'AI Agents'])
-  assert.deepEqual(labels(h.render())[2].items, ['Setting', 'About', 'Hide'])
+  assert.deepEqual(labels(h.render())[0].items, ['System Info', 'Widgets', 'Setting', 'Setting sync', 'Bookmarks'])
+  assert.deepEqual(labels(h.render())[2].items, ['About', 'FAQ', 'Hide'])
   assert.equal(store.config.leftSideBarIcons, ids)
   store.config.leftSideBarIcons = []
-  assert.deepEqual(labels(h.render())[0].items, ['AI Agents'])
-  assert.deepEqual(labels(h.render())[2].items, ['About', 'Hide'])
+  assert.deepEqual(labels(h.render())[0].items, ['System Info'])
+  assert.deepEqual(labels(h.render())[2].items, ['About', 'FAQ', 'Hide'])
 })
 
 test('ordinary entries call real handlers; Quick connect uses the actual input popover', async () => {
   const { store, calls } = makeStore()
   const h = await harness(sidebar + 'menu-preview.jsx', store)
   const tree = h.render({ handleClickBookmark: () => calls.push(['bookmark']) })
-  for (const label of ['Bookmarks', 'Setting sync', 'AI Agents', 'Widgets', 'Setting', 'About', 'Hide']) {
+  h.window.pre = { openExternal: (...args) => calls.push(['openExternal', ...args]) }
+  for (const label of ['System Info', 'Bookmarks', 'Setting sync', 'Anubis Oracle — AI Agents', 'Widgets', 'Setting', 'About', 'FAQ', 'Hide']) {
     button(tree, label).props.onClick()
   }
   assert.deepEqual(calls.map(call => call[0]), [
-    'bookmark', 'openSettingSync', 'toggleAIPanel', 'openWidgetsModal', 'openSetting', 'openAbout', 'toggleLeftSideBar'
+    'openAbout', 'bookmark', 'openSettingSync', 'toggleAIPanel', 'openWidgetsModal', 'openSetting', 'openAbout', 'openExternal', 'toggleLeftSideBar'
   ])
   const quick = nodes(tree, type('Popover'))[0]
   assert.equal(quick.props.trigger, 'click')
@@ -168,20 +178,27 @@ test('ordinary entries call real handlers; Quick connect uses the actual input p
   assert.equal(quick.props.content.props.inputOnly, true)
   assert.equal(button(tree, 'Bookmarks').props.className.includes('bookmark-sidebar-toggle'), true)
   h.window.et.disableAIFeature = true
-  assert.equal(button(h.render(), 'AI Agents').props.disabled, true)
+  assert.equal(button(h.render(), 'Anubis Oracle — AI Agents').props.disabled, true)
 })
 
-test('only seven PRO entries open explanatory dialogs with the official link', async () => {
+test('only the PRO entries open the upgrade modal with the mapped feature name', async () => {
   const { store, calls } = makeStore()
   const h = await harness(sidebar + 'menu-preview.jsx', store)
-  for (const label of labels(h.render())[1].items) {
+  const pro = [
+    ['Plugin Store', 'Plugin Store'],
+    ['Anubis Osiris — Automation', 'Anubis Osiris'],
+    ['Anubis Scarab — DLL Scanner', 'Anubis Scarab'],
+    ['Anubis Aegis — CVE Scanner', 'Anubis Aegis'],
+    ['Browser', 'Browser']
+  ]
+  assert.equal(pro.length, 5)
+  for (const [label, feature] of pro) {
     button(h.render(), label).props.onClick()
-    const modal = nodes(h.render(), type('Modal'))[0]
+    const modal = nodes(h.render(), type('UpgradeModal'))[0]
     assert.equal(modal.props.open, true)
-    assert.equal(modal.props.title, label)
-    assert.equal(nodes(modal, type('ExternalLink'))[0].props.to, site)
-    modal.props.onCancel()
-    assert.equal(nodes(h.render(), type('Modal'))[0].props.open, false)
+    assert.equal(modal.props.feature, feature)
+    modal.props.onClose()
+    assert.equal(nodes(h.render(), type('UpgradeModal'))[0].props.open, false)
   }
   assert.equal(calls.length, 0)
 })
@@ -194,7 +211,7 @@ test('active states reflect the real settings, bookmark and AI panel state', asy
     ['Setting sync', { showModal: modals.setting, settingTab: settingMap.setting, settingItem: { id: 'setting-sync' } }],
     ['Widgets', { showModal: modals.setting, settingTab: settingMap.widgets }],
     ['Setting', { showModal: modals.setting, settingTab: settingMap.setting, settingItem: { id: 'setting-common' } }],
-    ['AI Agents', { rightPanelVisible: true, rightPanelTab: 'ai' }],
+    ['Anubis Oracle — AI Agents', { rightPanelVisible: true, rightPanelTab: 'ai' }],
     ['About', { showInfoModal: true }]
   ]) {
     Object.assign(store, state)

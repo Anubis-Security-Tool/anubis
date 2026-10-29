@@ -1,0 +1,156 @@
+.upgrade-pricing-modal
+  .ant-modal-content
+    background var(--main)
+    border 1px solid var(--border)
+    border-radius 14px
+    padding 24px
+    color var(--text)
+  .ant-modal-close
+    color var(--text-dark)
+    &:hover
+      color var(--text)
+  .upgrade-head
+    text-align center
+    margin-bottom 22px
+    .upgrade-head-icon
+      display inline-flex
+      align-items center
+      justify-content center
+      width 44px
+      height 44px
+      margin-bottom 12px
+      border-radius 12px
+      background var(--main-light)
+      color var(--success)
+    .upgrade-title
+      margin 0 0 6px
+      color var(--text-light)
+      font-size 22px
+      font-weight 700
+      line-height 28px
+    .upgrade-subtitle
+      margin 0 auto
+      max-width 520px
+      color var(--text-dark)
+      font-size 14px
+      line-height 20px
+  .upgrade-cycle
+    display inline-flex
+    margin-top 16px
+    padding 3px
+    border 1px solid var(--border)
+    border-radius 999px
+    background var(--main-dark)
+    .upgrade-cycle-btn
+      padding 5px 16px
+      border 0
+      border-radius 999px
+      background transparent
+      color var(--text-dark)
+      font-size 13px
+      cursor pointer
+      transition color .15s, background .15s
+      &.active
+        background var(--primary)
+        color var(--main-dark)
+        font-weight 600
+  .upgrade-grid
+    display grid
+    grid-template-columns repeat(4, 1fr)
+    gap 14px
+  .upgrade-card
+    position relative
+    display flex
+    flex-direction column
+    padding 20px 16px
+    border 1px solid var(--border)
+    border-radius 12px
+    background var(--main-dark)
+    transition transform .15s, border-color .15s, box-shadow .15s
+    &:hover
+      transform translateY(-3px)
+      border-color var(--primary)
+    &.popular
+      border-color var(--success)
+      box-shadow 0 0 0 1px var(--success) inset
+    .upgrade-badge
+      position absolute
+      top -11px
+      left 50%
+      transform translateX(-50%)
+      display inline-flex
+      align-items center
+      gap 4px
+      padding 3px 10px
+      border-radius 999px
+      background var(--success)
+      color var(--main-dark)
+      font-size 10px
+      font-weight 700
+      letter-spacing .03em
+      text-transform uppercase
+      white-space nowrap
+    .upgrade-card-name
+      color var(--text-light)
+      font-size 17px
+      font-weight 700
+    .upgrade-card-tagline
+      margin-top 2px
+      color var(--text-dark)
+      font-size 12px
+      line-height 16px
+    .upgrade-card-price
+      margin 14px 0 16px
+      display flex
+      align-items baseline
+      gap 3px
+      .upgrade-card-amount
+        color var(--text-light)
+        font-size 26px
+        font-weight 700
+        line-height 1
+      .upgrade-card-period
+        color var(--text-dark)
+        font-size 13px
+    .upgrade-card-features
+      list-style none
+      margin 0
+      padding 0
+      display flex
+      flex-direction column
+      gap 9px
+      li
+        display flex
+        align-items flex-start
+        gap 8px
+        color var(--text)
+        font-size 13px
+        line-height 18px
+        > svg
+          flex-shrink 0
+          margin-top 1px
+          color var(--success)
+  .upgrade-foot
+    margin-top 22px
+    text-align center
+    .upgrade-cta
+      display inline-flex
+      align-items center
+      gap 6px
+      padding 10px 22px
+      border-radius 10px
+      background var(--primary)
+      color var(--main-dark)
+      font-size 14px
+      font-weight 600
+      text-decoration none
+      transition filter .15s
+      .anticon
+        font-size 13px
+      &:hover
+        filter brightness(1.08)
+        color var(--main-dark)
+
+@media (max-width: 760px)
+  .upgrade-pricing-modal .upgrade-grid
+    grid-template-columns repeat(2, 1fr)
