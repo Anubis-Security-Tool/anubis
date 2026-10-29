@@ -10,7 +10,7 @@ import {
 import MenuBtn from '../sys-menu/menu-btn'
 import QuickConnect from '../tabs/quick-connect'
 import UpgradeModal from './upgrade-modal'
-import { brand, modals, settingMap, infoTabs } from '../../common/constants'
+import { brand, modals, settingMap, infoTabs, terminalWebType } from '../../common/constants'
 import { isAIDisabled } from '../../common/ai-feature'
 import { groupedSidebarIconIds } from '../../common/left-sidebar-icon-defs'
 import './menu-preview.styl'
@@ -41,7 +41,7 @@ const groups = [
       { key: 'automation', name: 'Anubis Osiris', sub: 'Automation', icon: Workflow, pro: true },
       { key: 'dllScanner', name: 'Anubis Scarab', sub: 'DLL Scanner', icon: FileSearch, pro: true },
       { key: 'cveScanner', name: 'Anubis Aegis', sub: 'CVE Scanner', icon: ShieldAlert, pro: true },
-      { key: 'browser', name: 'Browser', icon: Globe, pro: true }
+      { key: 'browser', name: 'Browser', icon: Globe }
     ]
   },
   {
@@ -86,7 +86,12 @@ export default auto(function GroupedSidebarMenu ({ handleClickBookmark, children
     setting: () => store.openSetting(),
     about: () => store.openAbout(),
     faq: () => window.pre.openExternal(brand.domains.docs),
-    hide: () => store.toggleLeftSideBar()
+    hide: () => store.toggleLeftSideBar(),
+    browser: () => store.addTab({
+      type: terminalWebType,
+      url: 'https://www.google.com',
+      title: 'Browser'
+    })
   }
 
   function selectItem (item) {
