@@ -304,8 +304,33 @@ test('invalid userAgent override is ignored and falls back to the default', asyn
   const def = 'Mozilla/5.0 default-ua Safari/537.36'
   const f = fixture({ defaultUserAgent: def })
   await f.rbi.open({ id: 'a', url: 'https://example.org', userAgent: 'bad\nua' })
+  // invalid override is rejected; the default is applied to both the session
+  // and the webContents before navigation
   assert.equal(f.sessions[0].userAgent, def)
-  assert.equal(f.windows[0].webContents.userAgent, undefined)
+  assert.equal(f.windows[0].webContents.userAgent, def)
+  const iUa = f.ops.indexOf('wc.setUserAgent:' + def)
+  const iLoad = f.ops.indexOf('loadURL:https://example.org')
+  assert.ok(iUa >= 0 && iUa < iLoad, 'default applied before navigation')
+})
+
+test('pool reuse without an override reasserts the default UA so a prior override never leaks', async () => {
+  const def = 'Mozilla/5.0 default-ua Safari/537.36'
+  const override = 'Mozilla/5.0 (Macintosh) custom-override Safari/537.36'
+  const f = fixture({ defaultUserAgent: def })
+  await f.rbi.open({ id: 'a', url: 'https://a.com', userAgent: override })
+  assert.equal(f.windows[0].webContents.userAgent, override)
+  f.rbi.close({ id: 'a' })
+  // let park()'s best-effort async clear settle, then isolate the reuse path
+  await new Promise(resolve => setImmediate(resolve))
+  f.ops.length = 0
+  await f.rbi.open({ id: 'b', url: 'https://b.com' })
+  // the same pooled window is reused, but the previous override is gone
+  assert.equal(f.windows.length, 1)
+  assert.equal(f.sessions[0].userAgent, def)
+  assert.equal(f.windows[0].webContents.userAgent, def)
+  const iUa = f.ops.indexOf('wc.setUserAgent:' + def)
+  const iLoad = f.ops.indexOf('loadURL:https://b.com')
+  assert.ok(iUa >= 0 && iUa < iLoad, 'default reasserted before navigation')
 })
 
 test('exportCookies returns the array from cookies.get', async () => {

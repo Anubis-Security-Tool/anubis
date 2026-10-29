@@ -292,13 +292,18 @@ function createRbiBrowser ({
         try { ctx.win.webContents.setZoomLevel(0) } catch {}
         await clearSession(ctx.isolated)
       }
-      // Per-session UA override wins over defaultUserAgent. Applied to both the
-      // session (HTTP header + navigator) and the webContents, and crucially
-      // before loadURL so the very first request carries it. Re-applied here for
-      // pool-reused windows too, which may still hold the previous UA.
-      if (isValidUserAgent(userAgent)) {
-        try { if (typeof ctx.isolated.setUserAgent === 'function') ctx.isolated.setUserAgent(userAgent) } catch {}
-        try { if (typeof ctx.win.webContents.setUserAgent === 'function') ctx.win.webContents.setUserAgent(userAgent) } catch {}
+      // Per-session UA override wins over defaultUserAgent. The effective UA is
+      // applied to both the session (HTTP header + navigator) and the
+      // webContents, and crucially before loadURL so the very first request
+      // carries it. It is re-applied on every open so a pool-reused window never
+      // keeps the previous session's override: when no override is given, the
+      // default is reasserted, preventing UA from leaking across sessions.
+      const effectiveUserAgent = isValidUserAgent(userAgent)
+        ? userAgent
+        : (isValidUserAgent(defaultUserAgent) ? defaultUserAgent : null)
+      if (effectiveUserAgent) {
+        try { if (typeof ctx.isolated.setUserAgent === 'function') ctx.isolated.setUserAgent(effectiveUserAgent) } catch {}
+        try { if (typeof ctx.win.webContents.setUserAgent === 'function') ctx.win.webContents.setUserAgent(effectiveUserAgent) } catch {}
       }
       await ctx.win.webContents.loadURL(url)
     } catch (error) {
