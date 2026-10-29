@@ -5,6 +5,12 @@
 const { isDev, defaultLang } = require('../common/runtime-constants')
 const { resolve } = require('path')
 
+// Languages that must never be offered or auto-selected, regardless of the
+// system locale. The translation files stay in the locales package; they are
+// just excluded from the available-language list and from locale matching so
+// the app can never fall back to them.
+const excludedLangs = new Set(['ru_ru'])
+
 function getOsLocale () {
   return require('os-locale-s')
     .osLocale()
@@ -20,6 +26,7 @@ async function loadLocales () {
   const localeFolder = resolve(__dirname, path)
   // languages array
   const langs = require(resolve(localeFolder, 'list.json'))
+    .filter(fileName => !excludedLangs.has(fileName.replace('.js', '')))
     .map(fileName => {
       const filePath = resolve(localeFolder, fileName)
       const lang = require(filePath)
@@ -55,7 +62,7 @@ function findLang (langs, la) {
 }
 
 const getLang = (config, sysLocale, langs) => {
-  if (config.language) {
+  if (config.language && !excludedLangs.has(config.language)) {
     return config.language
   }
   let l = sysLocale
