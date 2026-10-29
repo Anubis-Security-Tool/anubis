@@ -153,13 +153,20 @@ const initWs = function (app, { rbiBridge } = {}) {
         }
         try {
           if (msg.t === 'open') {
-            await rbiBridge.open(id, { url: msg.url, width: msg.width, height: msg.height, dpr: msg.dpr })
+            await rbiBridge.open(id, { url: msg.url, width: msg.width, height: msg.height, dpr: msg.dpr, userAgent: msg.userAgent })
           } else if (msg.t === 'mouse' || msg.t === 'key') {
             await rbiBridge.input(id, msg)
           } else if (msg.t === 'resize') {
             await rbiBridge.resize(id, { width: msg.width, height: msg.height, dpr: msg.dpr })
           } else if (msg.t === 'nav') {
             await rbiBridge.nav(id, { action: msg.action, url: msg.url })
+          } else if (msg.t === 'cookies-export') {
+            const cookies = await rbiBridge.exportCookies(id)
+            if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ t: 'cookies', cookies: Array.isArray(cookies) ? cookies : [] }))
+          } else if (msg.t === 'cookies-import') {
+            const count = await rbiBridge.importCookies(id, Array.isArray(msg.cookies) ? msg.cookies : [])
+            await rbiBridge.nav(id, { action: 'reload' })
+            if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ t: 'cookies-imported', count }))
           }
         } catch (err) {
           log.warn('rbi ws message failed:', err.message)

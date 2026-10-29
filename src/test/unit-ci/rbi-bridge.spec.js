@@ -56,3 +56,13 @@ test('control methods name server-side rbi* functions with the session id', () =
   assert.deepEqual(calls[0].args, [{ id: 'a', url: 'https://x', width: 10, height: 20 }])
   assert.deepEqual(calls[4].args, [{ id: 'a' }])
 })
+
+test('cookie bridge methods name the server-side rbi cookie functions', () => {
+  const calls = []
+  const bridge = createRbiBridge({ rpc: (func, args) => { calls.push({ func, args }); return Promise.resolve() } })
+  bridge.exportCookies('a')
+  bridge.importCookies('a', [{ name: 'sid', value: '1', domain: 'x.com' }])
+  assert.deepEqual(calls.map(c => c.func), ['rbiExportCookies', 'rbiImportCookies'])
+  assert.deepEqual(calls[0].args, [{ id: 'a' }])
+  assert.deepEqual(calls[1].args, [{ id: 'a', cookies: [{ name: 'sid', value: '1', domain: 'x.com' }] }])
+})

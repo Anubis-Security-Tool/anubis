@@ -79,6 +79,14 @@ function keyCodeFor (key) {
   return undefined
 }
 
+// A valid override UA is a non-empty single-line string of sane length. Line
+// breaks are rejected so a crafted value cannot smuggle extra request headers.
+function isValidUserAgent (value) {
+  return typeof value === 'string' &&
+    value.length > 0 && value.length <= 1024 &&
+    !/[\r\n]/.test(value)
+}
+
 function createRbiBrowser ({
   session,
   BrowserWindow,
@@ -91,6 +99,7 @@ function createRbiBrowser ({
   idleTimeoutMs = DEFAULT_IDLE_TIMEOUT_MS,
   frameRate = DEFAULT_FRAME_RATE,
   jpegQuality = DEFAULT_JPEG_QUALITY,
+  defaultUserAgent = null,
   log = console
 } = {}) {
   if (!session || typeof session.fromPartition !== 'function') {
@@ -189,6 +198,12 @@ function createRbiBrowser ({
   function createWindowCtx (w, h) {
     const partition = 'anubis-rbi-' + randomUUID()
     const isolated = session.fromPartition(partition)
+    // A realistic default UA set at the session level drives both the HTTP
+    // User-Agent header and navigator.userAgent, hiding the Electron/anubis
+    // tokens. Per-session overrides are applied later in open().
+    if (isValidUserAgent(defaultUserAgent) && typeof isolated.setUserAgent === 'function') {
+      try { isolated.setUserAgent(defaultUserAgent) } catch {}
+    }
     hardenSession(isolated)
     const win = new BrowserWindow({
       show: false,
@@ -242,7 +257,7 @@ function createRbiBrowser ({
     return clearSession(isolated)
   }
 
-  async function open ({ id, url, width, height, dpr } = {}) {
+  async function open ({ id, url, width, height, dpr, userAgent } = {}) {
     if (typeof id !== 'string' || !id) throw new Error('Invalid browser session id')
     const existing = sessions.get(id)
     if (existing) {
@@ -276,6 +291,14 @@ function createRbiBrowser ({
         // visual state before the new page loads, so B never shares A's data.
         try { ctx.win.webContents.setZoomLevel(0) } catch {}
         await clearSession(ctx.isolated)
+      }
+      // Per-session UA override wins over defaultUserAgent. Applied to both the
+      // session (HTTP header + navigator) and the webContents, and crucially
+      // before loadURL so the very first request carries it. Re-applied here for
+      // pool-reused windows too, which may still hold the previous UA.
+      if (isValidUserAgent(userAgent)) {
+        try { if (typeof ctx.isolated.setUserAgent === 'function') ctx.isolated.setUserAgent(userAgent) } catch {}
+        try { if (typeof ctx.win.webContents.setUserAgent === 'function') ctx.win.webContents.setUserAgent(userAgent) } catch {}
       }
       await ctx.win.webContents.loadURL(url)
     } catch (error) {
@@ -367,12 +390,57 @@ function createRbiBrowser ({
     for (const id of [...sessions.keys()]) close({ id })
   }
 
+  // Export every cookie in a live session's isolated jar as a plain array, so an
+  // authenticated session can be carried to another session.
+  async function exportCookies ({ id } = {}) {
+    const entry = sessions.get(id)
+    if (!entry || entry.closed) throw new Error('Browser session not found')
+    if (!entry.isolated.cookies || typeof entry.isolated.cookies.get !== 'function') return []
+    return entry.isolated.cookies.get({})
+  }
+
+  // Load an array of previously exported cookies into a live session's jar. Each
+  // cookie is best-effort: a malformed entry is skipped rather than aborting the
+  // whole import. Returns the number of cookies successfully set.
+  async function importCookies ({ id, cookies } = {}) {
+    const entry = sessions.get(id)
+    if (!entry || entry.closed) throw new Error('Browser session not found')
+    if (!entry.isolated.cookies || typeof entry.isolated.cookies.set !== 'function') return 0
+    if (!Array.isArray(cookies)) return 0
+    let count = 0
+    for (const cookie of cookies) {
+      try {
+        if (!cookie || typeof cookie.name !== 'string' || !cookie.name) continue
+        const bareDomain = String(cookie.domain || '').replace(/^\./, '')
+        if (!bareDomain) continue
+        const path = cookie.path || '/'
+        const scheme = cookie.secure ? 'https' : 'http'
+        const details = {
+          url: `${scheme}://${bareDomain}${path}`,
+          name: cookie.name,
+          value: typeof cookie.value === 'string' ? cookie.value : '',
+          domain: cookie.domain,
+          path,
+          secure: !!cookie.secure,
+          httpOnly: !!cookie.httpOnly
+        }
+        if (typeof cookie.expirationDate === 'number') details.expirationDate = cookie.expirationDate
+        if (cookie.sameSite) details.sameSite = cookie.sameSite
+        await entry.isolated.cookies.set(details)
+        count++
+      } catch {}
+    }
+    return count
+  }
+
   return {
     open,
     input,
     resize,
     nav,
     close,
+    exportCookies,
+    importCookies,
     disposeAll,
     count: () => sessions.size,
     poolSize: () => idlePool.length,

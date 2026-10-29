@@ -1,12 +1,24 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
 
 // Remote browser isolation client. Renders a real offscreen Chromium page that
 // is streamed from the Electron main process as JPEG screencast frames over a
 // binary WebSocket (`/browser/:id`), and forwards semantic mouse/key/scroll/
 // resize events back. Replaces the <iframe> used in the web build, which fails
 // on sites that set X-Frame-Options / CSP frame-ancestors.
-export default function RbiView ({ tab, url, onNavigate, onError }) {
+//
+// The parent drives extra realism controls (custom user agent, cookie
+// import/export) through an imperative `send(obj)` handle exposed via ref, plus
+// an `onCookies` callback for exported cookie payloads pushed back from main.
+export default forwardRef(function RbiView ({ tab, url, userAgent, onNavigate, onError, onCookies }, ref) {
   const canvasRef = useRef(null)
+  const wsRef = useRef(null)
+
+  useImperativeHandle(ref, () => ({
+    send (obj) {
+      const ws = wsRef.current
+      if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj))
+    }
+  }), [])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -41,6 +53,7 @@ export default function RbiView ({ tab, url, onNavigate, onError }) {
       : `ws://${host}/browser/${tab.id}?token=${token}${extra}`
     const ws = new window.WebSocket(wsUrl)
     ws.binaryType = 'arraybuffer'
+    wsRef.current = ws
 
     const send = (obj) => { if (ws.readyState === 1) ws.send(JSON.stringify(obj)) }
     const mods = e => (e.altKey ? 1 : 0) | (e.ctrlKey ? 2 : 0) | (e.metaKey ? 4 : 0) | (e.shiftKey ? 8 : 0)
@@ -51,13 +64,15 @@ export default function RbiView ({ tab, url, onNavigate, onError }) {
       return { x: Math.round((e.clientX - rect.left) * sx), y: Math.round((e.clientY - rect.top) * sy) }
     }
 
-    ws.onopen = () => send({ t: 'open', url, width: size.width, height: size.height, dpr: 1 })
+    const ua = typeof userAgent === 'string' && userAgent.trim() ? userAgent.trim() : undefined
+    ws.onopen = () => send({ t: 'open', url, width: size.width, height: size.height, dpr: 1, userAgent: ua })
     ws.onmessage = async (ev) => {
       if (typeof ev.data === 'string') {
         let msg
         try { msg = JSON.parse(ev.data) } catch { return }
         if (msg.t === 'nav' && onNavigate) onNavigate(msg.url)
         else if (msg.t === 'error' && onError) onError(msg.code || 'Website could not be loaded')
+        else if (msg.t === 'cookies' && onCookies) onCookies(msg.cookies || [])
         return
       }
       try {
@@ -120,8 +135,9 @@ export default function RbiView ({ tab, url, onNavigate, onError }) {
       canvas.removeEventListener('keydown', onKeyDown)
       canvas.removeEventListener('keyup', onKeyUp)
       try { ws.close() } catch {}
+      wsRef.current = null
     }
-  }, [tab.id, url])
+  }, [tab.id, url, userAgent])
 
   return (
     <div style={{ width: '100%', height: '100%', background: '#fff', overflow: 'hidden' }}>
@@ -132,4 +148,4 @@ export default function RbiView ({ tab, url, onNavigate, onError }) {
       />
     </div>
   )
-}
+})

@@ -14,12 +14,19 @@ function fixture (overrides = {}) {
   const events = []
   const timers = []
   const ops = []
+  const cookieOps = []
   const session = {
     fromPartition (partition) {
       const value = {
         partition,
         setPermissionRequestHandler (fn) { this.permission = fn },
         setPermissionCheckHandler (fn) { this.check = fn },
+        setUserAgent (ua, acceptLanguages) { this.userAgent = ua; this.acceptLanguages = acceptLanguages; ops.push('session.setUserAgent:' + ua) },
+        cookies: {
+          store: [],
+          get (filter) { cookieOps.push({ op: 'get', filter }); return Promise.resolve(this.store.slice()) },
+          set (details) { cookieOps.push({ op: 'set', details }); this.store.push(details); return Promise.resolve() }
+        },
         clearStorageData (opts) { this.cleared = (this.cleared || 0) + 1; this.lastClearOpts = opts; ops.push('clearStorageData'); return Promise.resolve() },
         clearCache () { this.cacheCleared = (this.cacheCleared || 0) + 1; ops.push('clearCache'); return Promise.resolve() },
         clearAuthCache () { this.authCleared = (this.authCleared || 0) + 1; ops.push('clearAuthCache'); return Promise.resolve() },
@@ -49,6 +56,7 @@ function fixture (overrides = {}) {
         goForward () { this.wentForward = true },
         setFrameRate (n) { this.frameRate = n },
         setZoomLevel (n) { this.zoomLevel = n },
+        setUserAgent (ua) { this.userAgent = ua; ops.push('wc.setUserAgent:' + ua) },
         setWindowOpenHandler (fn) { this.popup = fn },
         sendInputEvent (e) { this.inputs.push(e) },
         invalidate () { this.invalidated = true },
@@ -71,7 +79,7 @@ function fixture (overrides = {}) {
     log: { warn () {} },
     ...overrides
   })
-  return { rbi, sessions, windows, frames, events, timers, ops, fakeImage }
+  return { rbi, sessions, windows, frames, events, timers, ops, cookieOps, fakeImage }
 }
 
 test('isHttpUrl accepts http(s) only', () => {
@@ -265,4 +273,93 @@ test('disposeAll parks every live session into the pool', async () => {
   assert.equal(f.rbi.count(), 0)
   assert.equal(f.rbi.poolSize(), 2)
   for (const w of f.windows) assert.equal(w.isDestroyed(), false)
+})
+
+test('defaultUserAgent is applied to the session before navigation', async () => {
+  const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/131.0.0.0 Safari/537.36'
+  const f = fixture({ defaultUserAgent: ua })
+  await f.rbi.open({ id: 'a', url: 'https://example.org' })
+  assert.equal(f.sessions[0].userAgent, ua)
+  const iUa = f.ops.indexOf('session.setUserAgent:' + ua)
+  const iLoad = f.ops.indexOf('loadURL:https://example.org')
+  assert.ok(iUa >= 0 && iUa < iLoad, 'UA set before navigation')
+  // the default never leaks Electron/anubis tokens
+  assert.ok(!/Electron/i.test(f.sessions[0].userAgent))
+  assert.ok(!/anubis/i.test(f.sessions[0].userAgent))
+})
+
+test('per-session userAgent override wins and hits session + webContents before load', async () => {
+  const def = 'Mozilla/5.0 default-ua Safari/537.36'
+  const override = 'Mozilla/5.0 (Macintosh) custom-override Safari/537.36'
+  const f = fixture({ defaultUserAgent: def })
+  await f.rbi.open({ id: 'a', url: 'https://example.org', userAgent: override })
+  assert.equal(f.sessions[0].userAgent, override)
+  assert.equal(f.windows[0].webContents.userAgent, override)
+  const iUa = f.ops.indexOf('wc.setUserAgent:' + override)
+  const iLoad = f.ops.indexOf('loadURL:https://example.org')
+  assert.ok(iUa >= 0 && iUa < iLoad, 'override applied before navigation')
+})
+
+test('invalid userAgent override is ignored and falls back to the default', async () => {
+  const def = 'Mozilla/5.0 default-ua Safari/537.36'
+  const f = fixture({ defaultUserAgent: def })
+  await f.rbi.open({ id: 'a', url: 'https://example.org', userAgent: 'bad\nua' })
+  assert.equal(f.sessions[0].userAgent, def)
+  assert.equal(f.windows[0].webContents.userAgent, undefined)
+})
+
+test('exportCookies returns the array from cookies.get', async () => {
+  const f = fixture()
+  await f.rbi.open({ id: 'a', url: 'https://a.com' })
+  f.sessions[0].cookies.store = [{ name: 'sid', value: '1', domain: '.a.com', path: '/' }]
+  const cookies = await f.rbi.exportCookies({ id: 'a' })
+  assert.ok(Array.isArray(cookies))
+  assert.deepEqual(cookies, [{ name: 'sid', value: '1', domain: '.a.com', path: '/' }])
+  assert.ok(f.cookieOps.some(o => o.op === 'get'))
+})
+
+test('exportCookies throws for an unknown session', async () => {
+  const f = fixture()
+  await assert.rejects(f.rbi.exportCookies({ id: 'missing' }), /not found/)
+})
+
+test('importCookies builds a correct url, calls cookies.set and skips broken entries', async () => {
+  const f = fixture()
+  await f.rbi.open({ id: 'a', url: 'https://a.com' })
+  const count = await f.rbi.importCookies({
+    id: 'a',
+    cookies: [
+      { name: 'sid', value: 'abc', domain: '.example.com', path: '/app', secure: true, httpOnly: true, expirationDate: 123, sameSite: 'no_restriction' },
+      { name: 'plain', value: 'y', domain: 'plain.org' },
+      { value: 'no-name', domain: 'x.com' },
+      { name: 'no-domain', value: 'z' },
+      null
+    ]
+  })
+  assert.equal(count, 2)
+  const sets = f.cookieOps.filter(o => o.op === 'set').map(o => o.details)
+  assert.equal(sets[0].url, 'https://example.com/app')
+  assert.equal(sets[0].name, 'sid')
+  assert.equal(sets[0].secure, true)
+  assert.equal(sets[0].httpOnly, true)
+  assert.equal(sets[0].expirationDate, 123)
+  assert.equal(sets[0].sameSite, 'no_restriction')
+  // non-secure cookie with a bare domain and default path
+  assert.equal(sets[1].url, 'http://plain.org/')
+})
+
+test('importCookies does not throw when a single cookies.set rejects', async () => {
+  const f = fixture()
+  await f.rbi.open({ id: 'a', url: 'https://a.com' })
+  const jar = f.sessions[0].cookies
+  let calls = 0
+  jar.set = () => { calls++; return calls === 1 ? Promise.reject(new Error('bad')) : Promise.resolve() }
+  const count = await f.rbi.importCookies({
+    id: 'a',
+    cookies: [
+      { name: 'a', value: '1', domain: 'a.com' },
+      { name: 'b', value: '2', domain: 'b.com' }
+    ]
+  })
+  assert.equal(count, 1)
 })

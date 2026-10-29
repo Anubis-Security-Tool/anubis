@@ -177,10 +177,11 @@ async function initAppServer () {
             return require('../widgets/load-widget').getManagedMcpEndpoint()
           }
           if (m.func === 'rbiOpen' || m.func === 'rbiInput' || m.func === 'rbiNav' ||
-            m.func === 'rbiResize' || m.func === 'rbiClose') {
+            m.func === 'rbiResize' || m.func === 'rbiClose' ||
+            m.func === 'rbiExportCookies' || m.func === 'rbiImportCookies') {
             const rbi = globalState.get('rbiBrowser')
             if (!rbi) throw new Error('RBI browser is not ready')
-            const method = { rbiOpen: 'open', rbiInput: 'input', rbiNav: 'nav', rbiResize: 'resize', rbiClose: 'close' }[m.func]
+            const method = { rbiOpen: 'open', rbiInput: 'input', rbiNav: 'nav', rbiResize: 'resize', rbiClose: 'close', rbiExportCookies: 'exportCookies', rbiImportCookies: 'importCookies' }[m.func]
             return rbi[method]((m.args && m.args[0]) || {})
           }
           if (!dispatch) throw new Error('Managed desktop dispatcher is not ready')
@@ -214,9 +215,15 @@ async function initAppServer () {
 // and bridges to this manager. Screencast frames are pushed to the child as
 // base64; control arrives as server-named `rbi*` RPC calls.
 function initRbiBrowser (child) {
+  // Derive a realistic Chrome UA from the bundled Chromium so the offscreen
+  // renderer no longer advertises Electron/anubis. The major version tracks the
+  // real engine; the fallback keeps a plausible value if it is unavailable.
+  const chromeMajor = String(process.versions.chrome || '').split('.')[0] || '131'
+  const defaultUserAgent = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeMajor}.0.0.0 Safari/537.36`
   const rbi = require('./rbi-browser').createRbiBrowser({
     session,
     BrowserWindow,
+    defaultUserAgent,
     isWebsiteUrl: require('./embedded-website').isWebsiteUrl,
     onFrame: (id, data) => {
       if (child.connected) child.send({ type: 'rbi-frame', id, data: data.toString('base64') })

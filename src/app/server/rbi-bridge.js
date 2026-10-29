@@ -59,6 +59,8 @@ function createRbiBridge ({ rpc, maxSockets = 16 }) {
     input (id, event) { return rpc('rbiInput', [{ id, ...event }]) },
     nav (id, event) { return rpc('rbiNav', [{ id, ...event }]) },
     resize (id, event) { return rpc('rbiResize', [{ id, ...event }]) },
+    exportCookies (id) { return rpc('rbiExportCookies', [{ id }]) },
+    importCookies (id, cookies) { return rpc('rbiImportCookies', [{ id, cookies }]) },
     close (id) { return rpc('rbiClose', [{ id }]) }
   }
 }

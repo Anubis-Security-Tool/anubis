@@ -12,6 +12,10 @@ export default function WebSession ({ tab, reloadTab }) {
   const [loadError, setLoadError] = useState('')
   const [authRequest, setAuthRequest] = useState(null)
   const webviewRef = useRef(null)
+  const rbiRef = useRef(null)
+  const fileInputRef = useRef(null)
+  const [uaDraft, setUaDraft] = useState('')
+  const [activeUa, setActiveUa] = useState('')
   let valid = false
   try {
     valid = ['http:', 'https:'].includes(new URL(url).protocol)
@@ -126,16 +130,52 @@ export default function WebSession ({ tab, reloadTab }) {
   }, [native, authRequest])
   const cancelAuth = useCallback(() => respond('', ''), [respond])
 
+  const handleCookiesExport = useCallback((cookies) => {
+    try {
+      const blob = new window.Blob([JSON.stringify(cookies, null, 2)], { type: 'application/json' })
+      const href = window.URL.createObjectURL(blob)
+      const a = window.document.createElement('a')
+      a.href = href
+      a.download = `cookies-${tab.id}.json`
+      window.document.body.appendChild(a)
+      a.click()
+      window.document.body.removeChild(a)
+      window.URL.revokeObjectURL(href)
+    } catch (error) {
+      setLoadError('Cookie export failed: ' + error.message)
+    }
+  }, [tab.id])
+
+  const onImportFile = useCallback((event) => {
+    const file = event.target.files && event.target.files[0]
+    event.target.value = ''
+    if (!file) return
+    const reader = new window.FileReader()
+    reader.onload = () => {
+      try {
+        const cookies = JSON.parse(reader.result)
+        if (!Array.isArray(cookies)) throw new Error('JSON must be an array of cookies')
+        rbiRef.current?.send({ t: 'cookies-import', cookies })
+      } catch (error) {
+        setLoadError('Cookie import failed: ' + error.message)
+      }
+    }
+    reader.readAsText(file)
+  }, [])
+
   function renderView () {
     if (!valid) return <div>URL: <b>{url}</b> not valid (HTTP or HTTPS required)</div>
     if (!embedded) {
       return (
         <RbiView
           key={tab.id}
+          ref={rbiRef}
           tab={tab}
           url={url}
+          userAgent={activeUa}
           onNavigate={setCurrentUrl}
           onError={setLoadError}
+          onCookies={handleCookiesExport}
         />
       )
     }
@@ -156,6 +196,27 @@ export default function WebSession ({ tab, reloadTab }) {
   return (
     <div className='web-session-wrap'>
       {!tab.hideAddressBar && <AddressBar {...addrProps} />}
+      {!embedded && valid && (
+        <div className='rbi-controls' style={{ display: 'flex', gap: '6px', alignItems: 'center', padding: '4px 8px', flexWrap: 'wrap' }}>
+          <input
+            type='text'
+            value={uaDraft}
+            placeholder='User agent (blank = default)'
+            onChange={e => setUaDraft(e.target.value)}
+            style={{ flex: '1 1 260px', minWidth: '180px' }}
+          />
+          <button type='button' onClick={() => setActiveUa(uaDraft.trim())}>Apply user agent</button>
+          <button type='button' onClick={() => rbiRef.current?.send({ t: 'cookies-export' })}>Export cookies</button>
+          <button type='button' onClick={() => fileInputRef.current?.click()}>Import cookies</button>
+          <input
+            ref={fileInputRef}
+            type='file'
+            accept='application/json,.json'
+            style={{ display: 'none' }}
+            onChange={onImportFile}
+          />
+        </div>
+      )}
       {loadError && <div role='alert' className='pd1'>Website could not be loaded: {loadError}</div>}
       <div className='web-session-content'>{renderView()}</div>
       <WebAuthModal authRequest={authRequest} onAuthSubmit={respond} onAuthCancel={cancelAuth} />
