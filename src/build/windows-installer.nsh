@@ -52,7 +52,7 @@
   !endif
   !ifndef BUILD_UNINSTALLER
     RequestExecutionLevel admin
-    SilentInstall silent
+    SilentInstall normal
   !endif
 !macroend
 
@@ -91,11 +91,16 @@
   FunctionEnd
 
   !macro preInit
-    SetSilent silent
+    SetSilent normal
     SetErrorLevel 1
     StrCpy $AnubisConsole 0
     StrCpy $AnubisConsoleMode 0
     ${GetParameters} $R0
+    ClearErrors
+    ${GetOptions} $R0 "--silent" $R1
+    ${IfNot} ${Errors}
+      SetSilent silent
+    ${EndIf}
     ClearErrors
     ${GetOptions} $R0 "--console" $R1
     ${IfNot} ${Errors}

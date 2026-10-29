@@ -62,3 +62,53 @@ test('only verified Web-user passwords or internal administrator assertions auth
   assert.equal(await rpc('browserRoleLogin', ['administrator']), true)
   assert.equal(authorized.length, 2)
 })
+
+test('an administrator-provisioned Web user password atomically replaces the local file and verifies', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'anubis-web-password-set-'))
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const manager = createManagedWebPassword(root)
+  const initial = fs.readFileSync(manager.file, 'utf8').trim()
+  const provisioned = 'U7!vL9@zC4#kT8$w'
+  manager.set(provisioned)
+  assert.equal(fs.readFileSync(manager.file, 'utf8'), provisioned + '\n')
+  assert.equal(manager.verify(initial), false)
+  assert.equal(manager.verify(provisioned), true)
+  assert.equal(createManagedWebPassword(root).verify(provisioned), true)
+  if (process.platform !== 'win32') {
+    assert.equal(fs.statSync(manager.file).mode & 0o777, 0o600)
+  }
+  assert.deepEqual(fs.readdirSync(root), ['web-user-password.txt'])
+  assert.throws(() => manager.set('short'), /12 to 4096/)
+  assert.throws(() => manager.set('has\nnewline-which-is-invalid'), /one line/)
+  assert.equal(manager.verify(provisioned), true)
+})
+
+test('setManagedWebPassword RPC provisions through the Web password store and is gated on availability', async t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'anubis-web-password-rpc-'))
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const webPassword = createManagedWebPassword(root)
+  const rpc = createBrowserRpc({
+    functions: {},
+    getConfig: () => ({}),
+    getPassword: async () => ({}),
+    constants: () => ({}),
+    init: async () => ({}),
+    webPassword,
+    onAuthorizedWebLogin: async () => {}
+  })
+  const provisioned = 'U7!vL9@zC4#kT8$w'
+  assert.equal(await rpc('setManagedWebPassword', [provisioned]), true)
+  assert.equal(webPassword.verify(provisioned), true)
+  await assert.rejects(rpc('setManagedWebPassword', []), /unavailable/)
+  await assert.rejects(rpc('setManagedWebPassword', [123]), /unavailable/)
+
+  const withoutStore = createBrowserRpc({
+    functions: {},
+    getConfig: () => ({}),
+    getPassword: async () => ({}),
+    constants: () => ({}),
+    init: async () => ({}),
+    onAuthorizedWebLogin: async () => {}
+  })
+  await assert.rejects(withoutStore('setManagedWebPassword', [provisioned]), /unavailable/)
+})

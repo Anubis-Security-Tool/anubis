@@ -102,6 +102,17 @@ function initManagedBrowser (app, {
         if (!ok || generation !== authGeneration) return res.status(401).json({ error: 'Invalid Web user password' })
         return res.json(issue(true))
       }
+      if (req.method === 'POST' && pathname === '/api/managed-set-web-password') {
+        const value = req.body
+        if (!value || Object.keys(value).sort().join(',') !== 'password' || typeof value.password !== 'string') {
+          return res.status(400).json({ error: 'Invalid managed Web password update' })
+        }
+        await rpc('setManagedWebPassword', [value.password])
+        authGeneration++
+        for (const session of sessions.values()) session.unlocked = false
+        sessions.clear()
+        return res.json({ ok: true })
+      }
       if (req.method === 'GET' && ['/', '/index.html'].includes(pathname)) {
         const info = await rpc('browserInfo')
         if (generation !== authGeneration) return res.status(401).json({ error: 'Desktop authentication required' })
@@ -167,7 +178,7 @@ function initManagedBrowser (app, {
         req.managedSession = session
         req.managedRpc = (func, args) => {
           if (!session.unlocked) throw new Error('Desktop authentication required')
-          if (['managedMcpEndpoint', 'browserInfo', 'browserLogin', 'browserUserLogin', 'browserRoleLogin'].includes(func)) {
+          if (['managedMcpEndpoint', 'browserInfo', 'browserLogin', 'browserUserLogin', 'browserRoleLogin', 'setManagedWebPassword'].includes(func)) {
             throw new Error('Internal managed function is not a browser API')
           }
           return rpc(func, args)

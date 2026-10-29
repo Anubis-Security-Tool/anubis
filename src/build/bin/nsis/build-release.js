@@ -119,6 +119,9 @@ function verifySourceAsar (root, runtime) {
   assert.equal(pack.dependencies[sdkPack.name], sdkPack.version)
   const expectedSdkPack = { ...sdkPack }
   delete expectedSdkPack.scripts
+  // Runtime staging intentionally keeps SDK functionality metadata and
+  // may drop issue-tracker metadata that is not used at runtime.
+  delete expectedSdkPack.bugs
   assert.deepEqual(JSON.parse(get(path.join('node_modules', sdkPack.name, 'package.json'))), expectedSdkPack)
   for (const file of sdkPack.files) assert(get(path.join('node_modules', sdkPack.name, file)).equals(fs.readFileSync(path.join(sdk, file))))
 }

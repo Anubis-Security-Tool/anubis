@@ -55,6 +55,13 @@ function createBrowserRpc ({ functions, getConfig, getPassword, constants, init,
       await onAuthorizedWebLogin()
       return true
     }
+    if (func === 'setManagedWebPassword') {
+      if (!webPassword || args.length !== 1 || typeof args[0] !== 'string') {
+        throw new Error('Managed Web password provisioning is unavailable')
+      }
+      webPassword.set(args[0])
+      return true
+    }
     if (func === 'init') {
       const result = await init()
       return { ...result, config: sanitizeConfig(result.config) }

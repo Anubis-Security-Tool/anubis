@@ -147,6 +147,36 @@ test('managed device enrollment is pending until an authenticated administrator 
   assert.equal((await response.json()).status, 'revoked')
 })
 
+test('management auto-approve setting gates enrollment status and requires the administrator token', async t => {
+  const f = await fixture(t)
+  const device = () => ({ id: crypto.randomUUID(), secret: crypto.randomBytes(32).toString('hex') })
+  const enroll = body => f.request('/api/agents/enroll', { method: 'POST', body: JSON.stringify(body) })
+
+  assert.equal((await f.request('/api/agents/settings')).status, 401)
+  assert.equal((await f.request('/api/agents/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"autoApprove":true}' })).status, 401)
+  assert.deepEqual(await (await f.request('/api/agents/settings', { headers: f.admin })).json(), { autoApprove: false })
+
+  assert.equal((await (await enroll(device())).json()).status, 'pending')
+
+  const enabled = await f.request('/api/agents/settings', {
+    method: 'POST', headers: { ...f.admin, 'content-type': 'application/json' }, body: JSON.stringify({ autoApprove: true })
+  })
+  assert.equal(enabled.status, 200)
+  assert.deepEqual(await enabled.json(), { autoApprove: true })
+  assert.equal((await (await enroll(device())).json()).status, 'approved')
+
+  for (const payload of ['{}', '{"autoApprove":"yes"}', '{"autoApprove":true,"x":1}', '{"other":true}']) {
+    assert.equal((await f.request('/api/agents/settings', {
+      method: 'POST', headers: { ...f.admin, 'content-type': 'application/json' }, body: payload
+    })).status, 400)
+  }
+
+  assert.equal((await f.request('/api/agents/settings', {
+    method: 'POST', headers: { ...f.admin, 'content-type': 'application/json' }, body: JSON.stringify({ autoApprove: false })
+  })).status, 200)
+  assert.equal((await (await enroll(device())).json()).status, 'pending')
+})
+
 test('management rejects malformed reports and invalid history limits', async t => {
   const f = await fixture(t)
   for (const payload of [null, [], {}, { installId: [] }, { installId: ' ' }, { installId: 'a'.repeat(129) }]) {

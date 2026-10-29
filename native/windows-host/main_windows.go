@@ -130,7 +130,7 @@ func command(args []string) error {
 			c.AllowedSIDs = strings.Split(*allowed, ",")
 		}
 		return install(c)
-	case "uninstall", "start", "stop", "status":
+	case "uninstall", "start", "stop", "status", "disarm", "arm":
 		return serviceCommand(args[0], *name)
 	case "service":
 		isService, err := svc.IsWindowsService()
@@ -283,21 +283,27 @@ func install(c config) (err error) {
 	}
 	serviceCreated = true
 	defer service.Close()
-	if err := service.SetRecoveryActions([]mgr.RecoveryAction{
-		{Type: mgr.ServiceRestart, Delay: 5 * time.Second},
-		{Type: mgr.ServiceRestart, Delay: 30 * time.Second},
-		{Type: mgr.ServiceRestart, Delay: 60 * time.Second},
-	}, 86400); err != nil {
-		deleteErr := service.Delete()
-		serviceCreated = deleteErr != nil
-		return errors.Join(err, deleteErr)
-	}
-	if err := service.SetRecoveryActionsOnNonCrashFailures(true); err != nil {
+	if err := armRecovery(service); err != nil {
 		deleteErr := service.Delete()
 		serviceCreated = deleteErr != nil
 		return errors.Join(err, deleteErr)
 	}
 	return writeJSON(map[string]any{"installed": true, "started": false, "name": c.ServiceName, "configPath": path})
+}
+
+// armRecovery applies the exact protected-host failure policy: restart after
+// 5s/30s/60s, reset the failure count after 86400s, and treat a non-clean stop
+// (nonzero exit) as a failure. install() and the "arm" command share it so the
+// restored policy is byte-for-byte identical to a fresh install.
+func armRecovery(service *mgr.Service) error {
+	if err := service.SetRecoveryActions([]mgr.RecoveryAction{
+		{Type: mgr.ServiceRestart, Delay: 5 * time.Second},
+		{Type: mgr.ServiceRestart, Delay: 30 * time.Second},
+		{Type: mgr.ServiceRestart, Delay: 60 * time.Second},
+	}, 86400); err != nil {
+		return err
+	}
+	return service.SetRecoveryActionsOnNonCrashFailures(true)
 }
 
 func serviceCommand(operation, name string) error {
@@ -353,6 +359,19 @@ func serviceCommand(operation, name string) error {
 			return err
 		}
 		return writeJSON(map[string]any{"uninstalled": true, "dataRetained": true})
+	case "disarm":
+		if err := service.SetRecoveryActionsOnNonCrashFailures(false); err != nil {
+			return err
+		}
+		if err := service.ResetRecoveryActions(); err != nil {
+			return err
+		}
+		return writeJSON(map[string]any{"disarmed": true, "name": name})
+	case "arm":
+		if err := armRecovery(service); err != nil {
+			return err
+		}
+		return writeJSON(map[string]any{"armed": true, "name": name})
 	}
 	return errors.New("unsupported service operation")
 }

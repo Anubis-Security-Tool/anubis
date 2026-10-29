@@ -50,6 +50,23 @@ function createManagedWebPassword (userData) {
     verify (candidate) {
       const expected = read()
       return valid(candidate) && crypto.timingSafeEqual(digest(candidate), digest(expected))
+    },
+    set (value) {
+      if (!valid(value)) throw new Error('Managed Web password must contain 12 to 4096 characters on one line')
+      const temporary = file + '.' + crypto.randomBytes(8).toString('hex') + '.next'
+      const fd = fs.openSync(temporary, 'wx', 0o600)
+      try {
+        fs.writeFileSync(fd, value + '\n')
+        fs.fsyncSync(fd)
+      } finally {
+        fs.closeSync(fd)
+      }
+      try {
+        fs.renameSync(temporary, file)
+      } catch (error) {
+        try { fs.unlinkSync(temporary) } catch (cleanup) { if (cleanup.code !== 'ENOENT') throw cleanup }
+        throw error
+      }
     }
   }
 }

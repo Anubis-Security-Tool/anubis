@@ -43,7 +43,8 @@ tree exactly, with no missing, changed or unexpected files.
 
 ## Installation and explicit authorization
 
-Setup is silent after UAC, never launches the GUI, and returns zero only after
+Setup shows installer UI after UAC by default (use `--silent` for unattended runs),
+never launches the application GUI, and returns zero only after
 native package validation, SCM Running, and a broker identity check confirm the
 actual SYSTEM/session-0 host **and machine engine**. SCM Running is published by
 the native host only after engine/control readiness. `--console` adds installer

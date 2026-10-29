@@ -217,6 +217,146 @@ function Assert-NativePackage {
   if ($valid.valid -ne $true) { throw 'Native package validation failed' }
 }
 
+function Get-ServiceRecord {
+  $rows = @(Get-CimInstance Win32_Service -Filter ("Name='" + $ServiceName.Replace("'", "''") + "'"))
+  if ($rows.Count -gt 1) { throw "Duplicate SCM records for $ServiceName" }
+  if ($rows.Count -eq 0) { return $null }
+  return $rows[0]
+}
+
+function Get-ExpectedServiceImagePath {
+  return '"' + (Join-Path $InstallDir 'anubis-host.exe') + '" service --name ' + $ServiceName
+}
+
+# Deletes a stale canonical service before the package files exist on disk, so
+# the installed native host cannot perform the delete. Uses the Win32 SCM
+# DeleteService directly (Remove-Service is PowerShell 7+ only; the installer
+# runs Windows PowerShell 5.1) and avoids spawning the sc command-line tool.
+function Register-ServiceControlType {
+  if ('AnubisInstaller.ServiceControl' -as [type]) { return }
+  Add-Type -TypeDefinition @'
+using System;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+namespace AnubisInstaller {
+  public static class ServiceControl {
+    [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    static extern IntPtr OpenSCManagerW(string machine, string database, uint access);
+    [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    static extern IntPtr OpenServiceW(IntPtr scm, string name, uint access);
+    [DllImport("advapi32.dll", SetLastError = true)]
+    static extern bool DeleteService(IntPtr service);
+    [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    static extern bool ChangeServiceConfig2W(IntPtr service, uint infoLevel, IntPtr info);
+    [DllImport("advapi32.dll", SetLastError = true)]
+    static extern bool CloseServiceHandle(IntPtr handle);
+    const uint SC_MANAGER_CONNECT = 0x0001;
+    const uint DELETE = 0x00010000;
+    const uint SERVICE_CHANGE_CONFIG = 0x0002;
+    const uint SERVICE_CONFIG_FAILURE_ACTIONS = 2;
+    const uint SERVICE_CONFIG_FAILURE_ACTIONS_FLAG = 4;
+    [StructLayout(LayoutKind.Sequential)]
+    struct FailureActionsFlag { public int fFailureActionsOnNonCrashFailures; }
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    struct FailureActions {
+      public uint dwResetPeriod;
+      public string lpRebootMsg;
+      public string lpCommand;
+      public uint cActions;
+      public IntPtr lpsaActions;
+    }
+    public static void DeleteByName(string name) {
+      IntPtr scm = OpenSCManagerW(null, null, SC_MANAGER_CONNECT);
+      if (scm == IntPtr.Zero) { throw new Win32Exception(Marshal.GetLastWin32Error()); }
+      try {
+        IntPtr svc = OpenServiceW(scm, name, DELETE);
+        if (svc == IntPtr.Zero) { throw new Win32Exception(Marshal.GetLastWin32Error()); }
+        try {
+          if (!DeleteService(svc)) { throw new Win32Exception(Marshal.GetLastWin32Error()); }
+        } finally { CloseServiceHandle(svc); }
+      } finally { CloseServiceHandle(scm); }
+    }
+    // Version-independent disarm: clears the non-crash-failure flag and deletes
+    // the restart actions directly through the SCM, so it never depends on the
+    // on-disk host binary (which, before file copy, is still the pre-upgrade
+    // build that does not understand the native disarm command).
+    public static void DisableRecovery(string name) {
+      IntPtr scm = OpenSCManagerW(null, null, SC_MANAGER_CONNECT);
+      if (scm == IntPtr.Zero) { throw new Win32Exception(Marshal.GetLastWin32Error()); }
+      try {
+        IntPtr svc = OpenServiceW(scm, name, SERVICE_CHANGE_CONFIG);
+        if (svc == IntPtr.Zero) { throw new Win32Exception(Marshal.GetLastWin32Error()); }
+        try {
+          FailureActionsFlag flag = new FailureActionsFlag();
+          flag.fFailureActionsOnNonCrashFailures = 0;
+          IntPtr pFlag = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(FailureActionsFlag)));
+          try {
+            Marshal.StructureToPtr(flag, pFlag, false);
+            if (!ChangeServiceConfig2W(svc, SERVICE_CONFIG_FAILURE_ACTIONS_FLAG, pFlag)) {
+              throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+          } finally { Marshal.FreeHGlobal(pFlag); }
+          // A valid (non-null) action pointer with cActions == 0 deletes all
+          // failure actions; a null pointer would leave them unchanged.
+          IntPtr emptyActions = Marshal.AllocHGlobal(8);
+          IntPtr pActions = IntPtr.Zero;
+          try {
+            FailureActions fa = new FailureActions();
+            fa.dwResetPeriod = 0;
+            fa.lpRebootMsg = "";
+            fa.lpCommand = "";
+            fa.cActions = 0;
+            fa.lpsaActions = emptyActions;
+            pActions = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(FailureActions)));
+            Marshal.StructureToPtr(fa, pActions, false);
+            if (!ChangeServiceConfig2W(svc, SERVICE_CONFIG_FAILURE_ACTIONS, pActions)) {
+              throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+          } finally {
+            if (pActions != IntPtr.Zero) {
+              Marshal.DestroyStructure(pActions, typeof(FailureActions));
+              Marshal.FreeHGlobal(pActions);
+            }
+            Marshal.FreeHGlobal(emptyActions);
+          }
+        } finally { CloseServiceHandle(svc); }
+      } finally { CloseServiceHandle(scm); }
+    }
+  }
+}
+'@
+}
+
+function Remove-StaleServiceViaScm([string] $Name) {
+  Register-ServiceControlType
+  [AnubisInstaller.ServiceControl]::DeleteByName($Name)
+}
+
+function Disable-ServiceRecoveryViaScm([string] $Name) {
+  Register-ServiceControlType
+  [AnubisInstaller.ServiceControl]::DisableRecovery($Name)
+}
+
+function Repair-StaleCanonicalService {
+  $record = Get-ServiceRecord
+  if ($null -eq $record) { return $false }
+  if ($record.PathName -cne (Get-ExpectedServiceImagePath) -or
+      $record.StartName -notin @('LocalSystem', '') -or
+      $record.StartMode -cne 'Auto') {
+    return $false
+  }
+  if ($record.State -ne 'Stopped') {
+    Stop-Service -Name $ServiceName -Force -ErrorAction Stop
+  }
+  Remove-StaleServiceViaScm $ServiceName
+  $deadline = [DateTime]::UtcNow.AddSeconds(30)
+  while ($null -ne (Get-ServiceRecord)) {
+    if ([DateTime]::UtcNow -ge $deadline) { throw "Timed out waiting for stale $ServiceName removal" }
+    Start-Sleep -Milliseconds 500
+  }
+  return $true
+}
+
 function Get-OwnedService {
   $services = @(Get-Service -Name $ServiceName -ErrorAction SilentlyContinue)
   if ($services.Count -eq 0) {
@@ -400,8 +540,9 @@ function Invoke-MachineInstall {
         }
         Stop-OwnedService
       } else {
-        if (@(Get-Service -ErrorAction Stop | Where-Object { $_.ServiceName -eq $ServiceName }).Count -gt 0) {
-          throw "$ServiceName exists outside this package; refusing to change it"
+        if (-not (Repair-StaleCanonicalService) -and
+            @(Get-Service -ErrorAction Stop | Where-Object { $_.ServiceName -eq $ServiceName }).Count -gt 0) {
+          throw "$ServiceName exists outside this package and could not be safely repaired; refusing to change it"
         }
         # Supply ownership/DACL at creation, not after a user-owned staging gap.
         $null = [IO.Directory]::CreateDirectory($InstallDir, (New-PackageAcl $true))
@@ -411,7 +552,10 @@ function Invoke-MachineInstall {
         }
       }
     }
-    'Stop' { Stop-OwnedService }
+    'Stop' {
+      Stop-OwnedService
+      if ($null -ne (Get-OwnedService)) { Disable-ServiceRecoveryViaScm $ServiceName }
+    }
     'UninstallPrevious' { Uninstall-PreviousMachinePackage }
     'Finish' {
       Protect-Package $InstallDir
@@ -432,6 +576,7 @@ function Invoke-MachineInstall {
       Assert-NativePackage
       Protect-QaMachinePolicy
       $status = Get-OwnedService
+      Invoke-Host @('arm', '--name', $ServiceName)
       if ($status.scm.State -eq 1) { Invoke-Host @('start', '--name', $ServiceName) }
       Wait-ServiceState 4
       $identity = Invoke-Host @('broker-client', '--name', $ServiceName, '--operation', 'identity') -Json

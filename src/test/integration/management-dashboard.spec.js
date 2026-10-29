@@ -3,6 +3,7 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
+const crypto = require('node:crypto')
 const { chromium } = require('playwright')
 const { expect } = require('@playwright/test')
 const { createServer } = require('../../../services/management-api')
@@ -219,5 +220,52 @@ test('managed MCP credentials validate their origin and clear on close, revocati
     session: Object.keys(window.sessionStorage)
   })), { local: [], session: [] })
   assert.ok(requests.every(url => url.startsWith(base) && !url.includes(adminToken) && !url.includes(credential)))
+  assert.deepEqual(errors, [])
+})
+
+test('management dashboard auto-approve toggle reflects, persists and controls enrollment without manual approval', { timeout: 60000 }, async t => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'anubis-inventory-browser-'))
+  const adminToken = 'inventory-toggle-test-token'
+  const server = createServer({ dataDir, adminToken })
+  let browser = null
+  t.after(async () => {
+    if (browser) await browser.close()
+    await new Promise(resolve => server.close(resolve))
+    fs.rmSync(dataDir, { recursive: true, force: true })
+  })
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+  const base = `http://127.0.0.1:${server.address().port}`
+  const enroll = () => fetch(base + '/api/agents/enroll', {
+    method: 'POST',
+    body: JSON.stringify({ id: crypto.randomUUID(), secret: crypto.randomBytes(32).toString('hex') }),
+    signal: AbortSignal.timeout(5000)
+  })
+
+  browser = await chromium.launch({ headless: true })
+  const page = await browser.newPage()
+  const errors = []
+  page.on('pageerror', error => errors.push(error.message))
+  await page.goto(base + '/admin')
+  await page.locator('#token').fill(adminToken)
+  await page.locator('#sign-in').click()
+  await expect(page.locator('#inventory')).toBeVisible()
+
+  const toggle = page.locator('#auto-approve')
+  await expect(toggle).toBeEnabled()
+  await expect(toggle).not.toBeChecked()
+  assert.equal((await (await enroll()).json()).status, 'pending')
+
+  await toggle.check()
+  await expect(page.locator('#message')).toContainText('Auto-approve enabled')
+  await expect.poll(async () => (await (await enroll()).json()).status).toBe('approved')
+
+  await page.reload()
+  await page.locator('#token').fill(adminToken)
+  await page.locator('#sign-in').click()
+  await expect(page.locator('#auto-approve')).toBeChecked()
+
+  await page.locator('#auto-approve').uncheck()
+  await expect(page.locator('#message')).toContainText('Auto-approve disabled')
+  assert.equal((await (await enroll()).json()).status, 'pending')
   assert.deepEqual(errors, [])
 })

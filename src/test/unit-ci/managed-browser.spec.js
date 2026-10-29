@@ -38,6 +38,7 @@ async function fixture (t, { requirePassword = false } = {}) {
     return new Promise(resolve => upstream.close(resolve))
   })
   const port = upstream.address().port
+  let userPassword = 'web-user-password'
   const rpc = async (func, args) => {
     if (func === 'browserInfo') {
       return {
@@ -48,8 +49,9 @@ async function fixture (t, { requirePassword = false } = {}) {
       }
     }
     if (func === 'browserLogin') return args[0] === 'desktop-password'
-    if (func === 'browserUserLogin') return args[0] === 'web-user-password'
+    if (func === 'browserUserLogin') return args[0] === userPassword
     if (func === 'browserRoleLogin') return args[0] === 'administrator'
+    if (func === 'setManagedWebPassword') { userPassword = args[0]; return true }
     return createBrowserRpc({
       functions: {},
       getConfig: () => ({}),
@@ -157,6 +159,46 @@ test('Web user passwords are independent of native profile passwords and reuse a
   const token = await response.json()
   const page = await fetch(configured.origin, { headers: { ...configured.headers, token } })
   assert.match(await page.text(), new RegExp(`localStorage\\.setItem\\('tokenElecterm',"${token}"\\)`))
+})
+
+test('managed Web user password provisioning requires private transport, validates body and rebinds authentication', async t => {
+  const f = await fixture(t)
+  const set = (body, headers = f.headers) => fetch(f.origin + '/api/managed-set-web-password', {
+    method: 'POST',
+    headers: { ...headers, 'content-type': 'application/json' },
+    body: JSON.stringify(body)
+  })
+  // Establish a user session on the original password.
+  const original = await fetch(f.origin + '/api/managed-password-login', {
+    method: 'POST',
+    headers: { ...f.headers, 'content-type': 'application/json' },
+    body: JSON.stringify({ password: 'web-user-password' })
+  })
+  assert.equal(original.status, 200)
+  const originalToken = await original.json()
+  assert.equal((await fetch(f.origin + '/api/get-constants', { headers: { ...f.headers, token: originalToken } })).status, 200)
+  // Transport secret is mandatory.
+  assert.equal((await set({ password: 'N3w!vL9@zC4#kT8$x' }, { [HEADER]: 'forged' })).status, 403)
+  // Body is strictly validated.
+  assert.equal((await set({ password: 123 })).status, 400)
+  assert.equal((await set({ password: 'x', extra: true })).status, 400)
+  // Provision a new password.
+  const provisioned = 'N3w!vL9@zC4#kT8$x'
+  assert.deepEqual(await (await set({ password: provisioned })).json(), { ok: true })
+  // The prior session is invalidated and the old password no longer authenticates.
+  assert.equal((await fetch(f.origin + '/api/get-constants', { headers: { ...f.headers, token: originalToken } })).status, 401)
+  assert.equal((await fetch(f.origin + '/api/managed-password-login', {
+    method: 'POST',
+    headers: { ...f.headers, 'content-type': 'application/json' },
+    body: JSON.stringify({ password: 'web-user-password' })
+  })).status, 401)
+  // The new password authenticates.
+  const signedIn = await fetch(f.origin + '/api/managed-password-login', {
+    method: 'POST',
+    headers: { ...f.headers, 'content-type': 'application/json' },
+    body: JSON.stringify({ password: provisioned })
+  })
+  assert.equal(signedIn.status, 200)
 })
 
 test('administrator grants require the private transport, exact browser binding and bounded expiry', async t => {

@@ -45,6 +45,11 @@ a { color: #9ccaff; }
 <h2>Managed devices: <span id="agent-count">0</span></h2>
 <p id="agent-summary" role="status"></p>
 <p id="managed-status" class="error" role="status"></p>
+<div class="toolbar">
+<label for="auto-approve">Auto-approve new devices</label>
+<input id="auto-approve" type="checkbox" disabled>
+</div>
+<p class="muted" id="auto-approve-help">When enabled, newly enrolling devices are approved automatically instead of requiring manual approval. Existing devices and manual Approve/Revoke are unaffected.</p>
 <p class="muted">New devices require approval. Verify the complete fingerprint in the local application's About panel before approving. Online means the authenticated reverse tunnel is connected and its local Web endpoint is ready. Native profile passwords and local MCP keys are not uploaded to inventory. Web administrator credentials are configured separately in Web password settings.</p>
 <p class="muted" id="managed-access-help">From another PC, sign in here and choose Open device for the approved Online installation. The device address alone does not grant access. A compatible Windows machine host offers its Windows workspace chooser inside the device page; each selected profile keeps its own password and data. This is access to Anubis on that machine, not Windows screen sharing. The standalone Web demo is a separate installation.</p>
 <p class="muted" id="connection-auth-help">Copy device URL copies only the nonsecret HTTPS address, not authorization. A different browser or incognito needs its own Web sign-in. Open device does not bypass passwords. Web administrator access uses the separate per-device password configured here; User access uses a unique password owned by a protected local file on that device, not a universal default. User access stays in the separate SYSTEM Web workspace, not the ordinary Desktop user's profile. Additional Windows profiles still require explicit policy authorization and their existing app-profile password from the profile owner. This panel cannot retrieve, set or reset Windows or native app-profile passwords. No SSH/RDP/VNC address, port or password is advertised by this inventory.</p>
@@ -83,7 +88,7 @@ a { color: #9ccaff; }
 <section id="web-admin-access" hidden>
 <div class="toolbar"><h2 id="web-admin-title">Device Web administrator</h2><button id="close-web-admin" type="button">Close Web password settings</button></div>
 <p>These are Anubis Web roles, not Windows accounts. This password is separate from the management API token and any native profile password. Setting it does not provision a Windows user or unlock DPAPI data. The device must support protected role issuance before Administrator sign-in can succeed.</p>
-<p>The User password is generated uniquely on the device and owned by its protected local file. This panel cannot read or change it; local-file changes require the compatible local verifier. There is no shared default password.</p>
+<p>The User password is a separate per-device credential. Set it below; it is delivered securely to the device's protected local file and is never revealed from this panel. There is no shared default password.</p>
 <p id="web-admin-status" role="status"></p>
 <form id="web-admin-form">
 <label for="web-admin-password">New unique Web administrator password (16 characters minimum; uppercase, lowercase, number and symbol)</label>
@@ -93,6 +98,15 @@ a { color: #9ccaff; }
 <button id="reveal-web-admin" type="button">Reveal current Web administrator password for 15 seconds</button>
 <pre id="web-admin-secret" hidden></pre>
 <p>Saving replaces only this device's Web administrator credential and invalidates its administrator browser sessions. User sessions, enrollment approval and MCP grants are unchanged. Reveal is explicit, available only to the authenticated management administrator, and never saved in browser storage.</p>
+<h3 id="web-user-title">Device Web user password</h3>
+<p>This is a separate password for the User role, independent of the administrator password above. Setting it here delivers it securely to the device's protected local file, replacing the device's hidden default so the User role can sign in. The password is never shown in inventory and cannot be revealed from this panel.</p>
+<p id="web-user-status" role="status"></p>
+<form id="web-user-form">
+<label for="web-user-password">New unique Web user password (16 characters minimum; uppercase, lowercase, number and symbol)</label>
+<input id="web-user-password" type="password" required minlength="16" maxlength="1024" autocomplete="new-password">
+<button id="save-web-user" type="submit">Save Web user password</button>
+</form>
+<p>Delivery requires the device to be Online. If it is offline the attempt is recorded but not applied; re-save while Online. Saving invalidates this device's User browser sessions. Administrator access is unaffected.</p>
 </section>
 <section id="history" hidden>
 <div class="toolbar"><h2 id="history-title"></h2><button id="close-history" type="button">Close history</button></div>
@@ -154,6 +168,8 @@ function signOut () {
   element('agent-count').textContent = '0'
   element('agent-summary').textContent = ''
   element('managed-status').textContent = ''
+  element('auto-approve').checked = false
+  element('auto-approve').disabled = true
   element('reports-status').textContent = ''
   element('reports').replaceChildren()
   element('count').textContent = '0'
@@ -340,6 +356,8 @@ function closeWebAdmin () {
   element('web-admin-secret').textContent = ''
   element('web-admin-secret').hidden = true
   element('web-admin-status').textContent = ''
+  element('web-user-password').value = ''
+  element('web-user-status').textContent = ''
   element('web-admin-access').hidden = true
 }
 
@@ -361,6 +379,20 @@ function webAdminMetadata (result) {
     : 'No Web administrator password configured. Set a unique password before administrator sign-in.'
 }
 
+function webUserMetadata (result) {
+  if (!result || typeof result.configured !== 'boolean' || typeof result.synced !== 'boolean' ||
+      result.role !== 'user' || result.workspace !== 'SYSTEM') {
+    throw new Error('Invalid Web user credential metadata')
+  }
+  element('web-user-status').textContent = result.configured
+    ? 'Web user password configured and delivered to the device.' +
+      (result.syncedAt ? ' Last delivered ' + timestamp(result.syncedAt) + '.' : '')
+    : result.updatedAt
+      ? 'A Web user password was set ' + timestamp(result.updatedAt) +
+        ' but has NOT reached the device (it was offline). Re-save while the device is Online.'
+      : 'No Web user password set. The device still uses its hidden local default; set one so the User role can sign in.'
+}
+
 async function openWebAdmin (agent) {
   closeWebAdmin()
   const session = generation
@@ -372,6 +404,9 @@ async function openWebAdmin (agent) {
     if (!currentWebAdmin(live, session, operation)) return
     webAdminSelection = { id: live.id, fingerprint: live.fingerprint }
     webAdminMetadata(result)
+    const userResult = await request('/api/agents/' + live.id + '/web-user', session)
+    if (!currentWebAdmin(live, session, operation)) return
+    webUserMetadata(userResult)
     element('web-admin-title').textContent = 'Web administrator: ' + live.label
     element('web-admin-access').hidden = false
     element('web-admin-access').scrollIntoView({ block: 'start' })
@@ -408,7 +443,7 @@ element('web-admin-form').addEventListener('submit', async event => {
     if (currentWebAdmin(selection, session, operation)) message('Unable to save Web password: ' + error.message + '. Reload settings before retrying.', true)
   } finally {
     element('save-web-admin').disabled = false
-    if (currentWebAdmin(selection, session, operation)) element('reveal-web-admin').disabled = !webAdminSelection.revision
+    element('reveal-web-admin').disabled = !(webAdminSelection && webAdminSelection.revision)
   }
 })
 element('reveal-web-admin').addEventListener('click', async () => {
@@ -435,7 +470,34 @@ element('reveal-web-admin').addEventListener('click', async () => {
   } catch (error) {
     if (currentWebAdmin(selection, session, operation)) message('Unable to reveal Web password: ' + error.message, true)
   } finally {
-    if (currentWebAdmin(selection, session, operation)) element('reveal-web-admin').disabled = false
+    element('reveal-web-admin').disabled = !(webAdminSelection && webAdminSelection.revision)
+  }
+})
+
+element('web-user-form').addEventListener('submit', async event => {
+  event.preventDefault()
+  const selection = webAdminSelection && { ...webAdminSelection }
+  if (!selection) return
+  const session = generation
+  const operation = webAdminGeneration
+  const password = element('web-user-password').value
+  element('web-user-password').value = ''
+  element('save-web-user').disabled = true
+  try {
+    const live = await readyAgent(selection, session, false)
+    if (!live || !currentWebAdmin(selection, session, operation)) return
+    const result = await request('/api/agents/' + selection.id + '/web-user', session, undefined, 'POST', {
+      password, fingerprint: selection.fingerprint
+    })
+    if (!currentWebAdmin(selection, session, operation)) return
+    webUserMetadata(result)
+    message(result.synced
+      ? 'Web user password saved and delivered. Existing User Web sessions must sign in again.'
+      : 'Web user password recorded but the device was offline; re-save while it is Online to apply it.', !result.synced)
+  } catch (error) {
+    if (currentWebAdmin(selection, session, operation)) message('Unable to save Web user password: ' + error.message + '. Reload settings before retrying.', true)
+  } finally {
+    if (currentWebAdmin(selection, session, operation)) element('save-web-user').disabled = false
   }
 })
 
@@ -611,9 +673,10 @@ async function refresh () {
   element('refresh').disabled = true
   element('sign-in').disabled = true
   try {
-    const [reportsResult, managedResult] = await Promise.allSettled([
+    const [reportsResult, managedResult, settingsResult] = await Promise.allSettled([
       request('/api/installs', session, pending.signal),
-      request('/api/agents', session, pending.signal)
+      request('/api/agents', session, pending.signal),
+      request('/api/agents/settings', session, pending.signal)
     ])
     if (session !== generation || controller !== pending) return
     const failures = []
@@ -628,6 +691,14 @@ async function refresh () {
       renderAgents(latestAgents, false)
       element('managed-status').textContent = 'Managed inventory unavailable: ' + error.message
       failures.push(element('managed-status').textContent)
+    }
+    try {
+      if (settingsResult.status === 'rejected') throw settingsResult.reason
+      if (typeof settingsResult.value?.autoApprove !== 'boolean') throw new Error('Invalid settings response')
+      element('auto-approve').checked = settingsResult.value.autoApprove
+      element('auto-approve').disabled = false
+    } catch (error) {
+      element('auto-approve').disabled = true
     }
     try {
       if (reportsResult.status === 'rejected') throw reportsResult.reason
@@ -665,6 +736,26 @@ element('login-form').addEventListener('submit', event => {
   refresh()
 })
 element('refresh').addEventListener('click', refresh)
+element('auto-approve').addEventListener('change', async event => {
+  const session = generation
+  const toggle = event.target
+  const desired = toggle.checked
+  toggle.disabled = true
+  try {
+    const result = await request('/api/agents/settings', session, undefined, 'POST', { autoApprove: desired })
+    if (session !== generation) return
+    if (typeof result?.autoApprove !== 'boolean') throw new Error('Invalid settings response')
+    toggle.checked = result.autoApprove
+    message(result.autoApprove
+      ? 'Auto-approve enabled: new devices are approved automatically on enrollment.'
+      : 'Auto-approve disabled: new devices require manual approval.')
+  } catch (error) {
+    toggle.checked = !desired
+    message('Unable to update auto-approve: ' + error.message, true)
+  } finally {
+    if (session === generation) toggle.disabled = false
+  }
+})
 element('close-mcp').addEventListener('click', closeMcp)
 element('sign-out').addEventListener('click', () => {
   signOut()
