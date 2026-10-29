@@ -19,7 +19,7 @@ describe('Windows installer contract', () => {
   it('elevates only the installer, before process creation completes', () => {
     assert.equal(config.win.requestedExecutionLevel, 'asInvoker')
     assert.equal(config.nsis.include, 'src/build/windows-installer.nsh')
-    assert.match(include, /!macro customHeader[\s\S]*?!ifndef BUILD_UNINSTALLER\s+RequestExecutionLevel admin\s+SilentInstall silent/)
+    assert.match(include, /!macro customHeader[\s\S]*?!ifndef BUILD_UNINSTALLER\s+RequestExecutionLevel admin\s+SilentInstall normal/)
     assert.match(include, /!ifdef BUILD_UNINSTALLER\s+RequestExecutionLevel admin/)
     assert.doesNotMatch(include, /UAC_RunElevated|ExecShell.*runas/i)
   })
@@ -54,6 +54,19 @@ describe('Windows installer contract', () => {
     for (const line of include.split(/\r?\n/).filter(line => /^\s*MessageBox\b/.test(line))) {
       assert.match(line, /\/SD IDOK$/, 'Silent errors must not block on a dialog: ' + line)
     }
+  })
+
+  it('defaults to a visible install and flips to silent only on the --silent flag', () => {
+    // Fleet auto-update + canary drive the installer with `--silent`; the GUI
+    // default must stay visible (`normal`) and switch to silent solely via that
+    // flag in preInit. This is the fleet-critical path the poller depends on.
+    assert.match(include, /!macro preInit\s+SetSilent normal/)
+    assert.match(
+      include,
+      /\$\{GetOptions\} \$R0 "--silent" \$R1\s+\$\{IfNot\} \$\{Errors\}\s+SetSilent silent\s+\$\{EndIf\}/
+    )
+    // The default `normal` must precede the conditional `silent` flip.
+    assert.ok(include.indexOf('SetSilent normal') < include.indexOf('SetSilent silent'))
   })
 
   it('invokes native x64 PowerShell from both 32-bit NSIS deployment paths', () => {

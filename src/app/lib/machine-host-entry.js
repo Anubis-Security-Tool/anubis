@@ -3,6 +3,7 @@ const path = require('node:path')
 const { execFileSync } = require('node:child_process')
 const { createRuntimeControl } = require('./machine-runtime-control')
 const { writeReady, writeStartupFailure } = require('./machine-runtime-contract')
+const { createMachineUpdatePoller, eligibleRuntime } = require('./machine-host-update-poller')
 
 function failure (code) {
   return Object.assign(new Error('Machine runtime could not start'), { code })
@@ -110,6 +111,7 @@ async function startMachineHost (invocation) {
   let child
   let monitor
   let startupTimer
+  let poller
   let stopping
   let endpointReady = false
   const globalState = require('./glob-state')
@@ -118,6 +120,7 @@ async function startMachineHost (invocation) {
     stopping = (async () => {
       clearInterval(monitor)
       clearTimeout(startupTimer)
+      poller?.stop()
       endpointReady = false
       globalState.set('machineStopping', true)
       try {
@@ -259,6 +262,21 @@ async function startMachineHost (invocation) {
     writeReady(invocation)
     clearTimeout(startupTimer)
     checkStop()
+    if (!stopping) {
+      const brand = require('../common/brand')
+      const serviceName = process.env.ANUBIS_MACHINE_CONTEXT_SERVICE
+      if (eligibleRuntime({ mode: invocation.mode, serviceName, updateEnabled: brand.update.enabled })) {
+        poller = createMachineUpdatePoller({
+          brand,
+          currentVersion: app.getVersion(),
+          serviceName,
+          helper,
+          tempDir: app.getPath('temp'),
+          dataDir: invocation.dataDir
+        })
+        poller.start()
+      }
+    }
     return { stop }
   } catch (error) {
     await failed(error)

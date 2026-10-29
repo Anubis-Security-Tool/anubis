@@ -100,14 +100,14 @@ function prepareWindowsUpdate (helper, serviceName, file, update) {
   })
 }
 
-function launchPreparedWindowsUpdate (file) {
+function launchPreparedWindowsUpdate (file, { silent = false } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(file, [], {
+    const child = spawn(file, silent ? ['--silent'] : [], {
       cwd: path.dirname(file),
       shell: false,
       detached: true,
       stdio: 'ignore',
-      windowsHide: false
+      windowsHide: silent
     })
     child.once('error', () => reject(clientError('ERR_HOST_UPDATE_LAUNCH')))
     child.once('spawn', () => {
