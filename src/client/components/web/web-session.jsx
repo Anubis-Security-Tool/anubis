@@ -1,7 +1,23 @@
 import AddressBar from './address-bar'
 import WebAuthModal from './web-auth-modal'
 import RbiView from './rbi-view'
+import BrowserPanel from './browser-panel'
+import { notification } from '../common/notification'
+import { handleErr } from '../../common/fetch'
+import { buildProfile, sanitizeFileBase } from './browser-profile'
 import React, { useState, useRef, useEffect, useCallback } from 'react'
+
+function downloadJson (obj, fileName) {
+  const blob = new window.Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' })
+  const href = window.URL.createObjectURL(blob)
+  const a = window.document.createElement('a')
+  a.href = href
+  a.download = fileName
+  window.document.body.appendChild(a)
+  a.click()
+  window.document.body.removeChild(a)
+  window.URL.revokeObjectURL(href)
+}
 
 export default function WebSession ({ tab, reloadTab }) {
   const { url = '' } = tab
@@ -13,8 +29,7 @@ export default function WebSession ({ tab, reloadTab }) {
   const [authRequest, setAuthRequest] = useState(null)
   const webviewRef = useRef(null)
   const rbiRef = useRef(null)
-  const fileInputRef = useRef(null)
-  const [uaDraft, setUaDraft] = useState('')
+  const pendingRef = useRef(null)
   const [activeUa, setActiveUa] = useState('')
   let valid = false
   try {
@@ -130,37 +145,52 @@ export default function WebSession ({ tab, reloadTab }) {
   }, [native, authRequest])
   const cancelAuth = useCallback(() => respond('', ''), [respond])
 
-  const handleCookiesExport = useCallback((cookies) => {
+  // Cookies exported from the RBI session arrive here. A pending-action flag set
+  // just before the export request decides whether we write a plain cookies file
+  // or bundle them (with the active user agent) into a profile.
+  const handleCookies = useCallback((cookies) => {
+    const pending = pendingRef.current
+    pendingRef.current = null
+    const list = Array.isArray(cookies) ? cookies : []
     try {
-      const blob = new window.Blob([JSON.stringify(cookies, null, 2)], { type: 'application/json' })
-      const href = window.URL.createObjectURL(blob)
-      const a = window.document.createElement('a')
-      a.href = href
-      a.download = `cookies-${tab.id}.json`
-      window.document.body.appendChild(a)
-      a.click()
-      window.document.body.removeChild(a)
-      window.URL.revokeObjectURL(href)
-    } catch (error) {
-      setLoadError('Cookie export failed: ' + error.message)
-    }
-  }, [tab.id])
-
-  const onImportFile = useCallback((event) => {
-    const file = event.target.files && event.target.files[0]
-    event.target.value = ''
-    if (!file) return
-    const reader = new window.FileReader()
-    reader.onload = () => {
-      try {
-        const cookies = JSON.parse(reader.result)
-        if (!Array.isArray(cookies)) throw new Error('JSON must be an array of cookies')
-        rbiRef.current?.send({ t: 'cookies-import', cookies })
-      } catch (error) {
-        setLoadError('Cookie import failed: ' + error.message)
+      if (pending && pending.type === 'profile') {
+        const bundle = buildProfile({ name: pending.name, userAgent: activeUa, cookies: list })
+        downloadJson(bundle, `${sanitizeFileBase(bundle.name)}.anubisprofile.json`)
+        notification.success({ message: 'Profile saved', description: `${bundle.name} (${list.length} cookies)` })
+      } else {
+        downloadJson(list, `cookies-${tab.id}.json`)
+        notification.success({ message: `Exported ${list.length} cookies` })
       }
+    } catch (error) {
+      handleErr({ message: 'Cookie export failed: ' + error.message })
     }
-    reader.readAsText(file)
+  }, [tab.id, activeUa])
+
+  const onApplyUa = useCallback((ua) => {
+    setActiveUa(typeof ua === 'string' ? ua.trim() : '')
+  }, [])
+
+  const onExportCookies = useCallback(() => {
+    pendingRef.current = { type: 'export' }
+    rbiRef.current?.send({ t: 'cookies-export' })
+  }, [])
+
+  const onImportCookies = useCallback((cookies) => {
+    const list = Array.isArray(cookies) ? cookies : []
+    rbiRef.current?.send({ t: 'cookies-import', cookies: list })
+    notification.success({ message: `Imported ${list.length} cookies` })
+  }, [])
+
+  const onSaveProfile = useCallback((name) => {
+    pendingRef.current = { type: 'profile', name }
+    rbiRef.current?.send({ t: 'cookies-export' })
+  }, [])
+
+  const onLoadProfile = useCallback((bundle) => {
+    setActiveUa(typeof bundle.userAgent === 'string' ? bundle.userAgent.trim() : '')
+    const list = Array.isArray(bundle.cookies) ? bundle.cookies : []
+    rbiRef.current?.send({ t: 'cookies-import', cookies: list })
+    notification.success({ message: 'Profile loaded', description: `${bundle.name} (${list.length} cookies)` })
   }, [])
 
   function renderView () {
@@ -175,7 +205,7 @@ export default function WebSession ({ tab, reloadTab }) {
           userAgent={activeUa}
           onNavigate={setCurrentUrl}
           onError={setLoadError}
-          onCookies={handleCookiesExport}
+          onCookies={handleCookies}
         />
       )
     }
@@ -197,25 +227,14 @@ export default function WebSession ({ tab, reloadTab }) {
     <div className='web-session-wrap'>
       {!tab.hideAddressBar && <AddressBar {...addrProps} />}
       {!embedded && valid && (
-        <div className='rbi-controls' style={{ display: 'flex', gap: '6px', alignItems: 'center', padding: '4px 8px', flexWrap: 'wrap' }}>
-          <input
-            type='text'
-            value={uaDraft}
-            placeholder='User agent (blank = default)'
-            onChange={e => setUaDraft(e.target.value)}
-            style={{ flex: '1 1 260px', minWidth: '180px' }}
-          />
-          <button type='button' onClick={() => setActiveUa(uaDraft.trim())}>Apply user agent</button>
-          <button type='button' onClick={() => rbiRef.current?.send({ t: 'cookies-export' })}>Export cookies</button>
-          <button type='button' onClick={() => fileInputRef.current?.click()}>Import cookies</button>
-          <input
-            ref={fileInputRef}
-            type='file'
-            accept='application/json,.json'
-            style={{ display: 'none' }}
-            onChange={onImportFile}
-          />
-        </div>
+        <BrowserPanel
+          activeUa={activeUa}
+          onApplyUa={onApplyUa}
+          onExportCookies={onExportCookies}
+          onImportCookies={onImportCookies}
+          onSaveProfile={onSaveProfile}
+          onLoadProfile={onLoadProfile}
+        />
       )}
       {loadError && <div role='alert' className='pd1'>Website could not be loaded: {loadError}</div>}
       <div className='web-session-content'>{renderView()}</div>
