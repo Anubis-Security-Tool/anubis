@@ -268,6 +268,20 @@ test('browser RPC rejects native process control over an authenticated real WebS
   await closed
 })
 
+test('browser RPC rejects rbi* control funcs so the client cannot drive the offscreen browser directly', async t => {
+  const f = await fixture(t)
+  const socket = new WebSocket(f.origin.replace('http:', 'ws:') + '/common/s?token=' + f.token, { headers: f.headers })
+  await once(socket, 'open')
+  for (const func of ['rbiOpen', 'rbiInput', 'rbiNav', 'rbiResize', 'rbiClose']) {
+    const result = once(socket, 'message')
+    socket.send(JSON.stringify({ id: func, func, args: [{ id: 'x', url: 'https://example.org' }] }))
+    assert.match(JSON.parse(String((await result)[0])).error.message, /not a browser API/)
+  }
+  const closed = once(socket, 'close')
+  socket.close()
+  await closed
+})
+
 test('browser file download and upload require authentication and preserve exact bytes', async t => {
   const f = await fixture(t)
   const source = path.join(f.root, 'download.bin')

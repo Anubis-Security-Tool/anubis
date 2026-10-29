@@ -178,11 +178,16 @@ function initManagedBrowser (app, {
         req.managedSession = session
         req.managedRpc = (func, args) => {
           if (!session.unlocked) throw new Error('Desktop authentication required')
-          if (['managedMcpEndpoint', 'browserInfo', 'browserLogin', 'browserUserLogin', 'browserRoleLogin', 'setManagedWebPassword'].includes(func)) {
+          if (['managedMcpEndpoint', 'browserInfo', 'browserLogin', 'browserUserLogin', 'browserRoleLogin', 'setManagedWebPassword',
+            'rbiOpen', 'rbiInput', 'rbiNav', 'rbiResize', 'rbiClose'].includes(func)) {
             throw new Error('Internal managed function is not a browser API')
           }
           return rpc(func, args)
         }
+        return next()
+      }
+      if (/^\/browser\/[^/]+(?:\/\.websocket)?$/.test(pathname)) {
+        req.managedSession = session
         return next()
       }
       if (/^\/(?:terminals|sftp|transfer|vnc|rdp|spice)\/[^/]+(?:\/[^/]+)?(?:\/\.websocket)?$/.test(pathname)) {

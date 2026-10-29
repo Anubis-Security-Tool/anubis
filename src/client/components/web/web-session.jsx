@@ -1,5 +1,6 @@
 import AddressBar from './address-bar'
 import WebAuthModal from './web-auth-modal'
+import RbiView from './rbi-view'
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 
 export default function WebSession ({ tab, reloadTab }) {
@@ -129,14 +130,13 @@ export default function WebSession ({ tab, reloadTab }) {
     if (!valid) return <div>URL: <b>{url}</b> not valid (HTTP or HTTPS required)</div>
     if (!embedded) {
       return (
-        <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-          <div role='note' className='pd1'>
-            Some websites block embedding in a remote browser.
-            {' '}If this page is blank or refused,{' '}
-            <button type='button' onClick={handleOpen}>{window.translate('openInDefaultBrowser')}</button>.
-          </div>
-          <iframe src={url} title={tab.title || 'Website'} style={{ width: '100%', flex: 1, minHeight: 0, border: 'none' }} ref={webviewRef} />
-        </div>
+        <RbiView
+          key={tab.id}
+          tab={tab}
+          url={url}
+          onNavigate={setCurrentUrl}
+          onError={setLoadError}
+        />
       )
     }
     if (native && !partition) return loadError ? null : <div className='pd1'>Opening isolated website...</div>

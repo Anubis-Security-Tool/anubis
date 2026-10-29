@@ -6,6 +6,7 @@ const {
   ipcMain,
   app,
   BrowserWindow,
+  session,
   dialog,
   powerMonitor,
   globalShortcut,
@@ -175,6 +176,13 @@ async function initAppServer () {
           if (m.func === 'managedMcpEndpoint') {
             return require('../widgets/load-widget').getManagedMcpEndpoint()
           }
+          if (m.func === 'rbiOpen' || m.func === 'rbiInput' || m.func === 'rbiNav' ||
+            m.func === 'rbiResize' || m.func === 'rbiClose') {
+            const rbi = globalState.get('rbiBrowser')
+            if (!rbi) throw new Error('RBI browser is not ready')
+            const method = { rbiOpen: 'open', rbiInput: 'input', rbiNav: 'nav', rbiResize: 'resize', rbiClose: 'close' }[m.func]
+            return rbi[method]((m.args && m.args[0]) || {})
+          }
           if (!dispatch) throw new Error('Managed desktop dispatcher is not ready')
           return dispatch(m.func, m.args)
         }).then(
@@ -195,9 +203,29 @@ async function initAppServer () {
         }
       }
     })
+    initRbiBrowser(child)
     globalState.set('serverInited', true)
   }
   globalState.set('config', config)
+}
+
+// Remote browser isolation host. The hardened offscreen Chromium renderers can
+// only run here in main; the server child terminates the `/browser/:id` socket
+// and bridges to this manager. Screencast frames are pushed to the child as
+// base64; control arrives as server-named `rbi*` RPC calls.
+function initRbiBrowser (child) {
+  const rbi = require('./rbi-browser').createRbiBrowser({
+    session,
+    BrowserWindow,
+    isWebsiteUrl: require('./embedded-website').isWebsiteUrl,
+    onFrame: (id, data) => {
+      if (child.connected) child.send({ type: 'rbi-frame', id, data: data.toString('base64') })
+    },
+    onEvent: (id, event) => { if (child.connected) child.send({ type: 'rbi-event', id, event }) },
+    log
+  })
+  globalState.set('rbiBrowser', rbi)
+  child.once('disconnect', () => rbi.disposeAll())
 }
 
 function initIpc () {

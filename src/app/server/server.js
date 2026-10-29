@@ -12,6 +12,7 @@ const appDec = require('./app-wrap')
 const managedRpc = process.env.ANUBIS_MANAGED_TRANSPORT_SECRET
   ? require('./managed-rpc').createRpcChannel(process)
   : null
+let rbiBridge = null
 if (managedRpc) {
   app.all('/mcp', require('./managed-mcp').createManagedMcpProxy({
     secret: process.env.ANUBIS_MANAGED_TRANSPORT_SECRET,
@@ -48,6 +49,11 @@ if (managedRpc) {
   require('../lib/managed-auth-invalidation').registerManagedAuthInvalidation(browser)
   process.once('disconnect', () => browser.close())
   process.once('exit', () => browser.close())
+
+  rbiBridge = require('./rbi-bridge').createRbiBridge({ rpc: managedRpc.call })
+  process.on('message', (m) => {
+    if (m && (m.type === 'rbi-frame' || m.type === 'rbi-event')) rbiBridge.route(m.id, m)
+  })
 }
 
 app.get('/run', function (req, res) {
@@ -63,7 +69,7 @@ app.post('/auth', function (req, res) {
 if (!isDev) {
   initFileServer(app)
 }
-initWs(app)
+initWs(app, { rbiBridge })
 
 const runServer = function () {
   const { electermPort, electermHost } = process.env

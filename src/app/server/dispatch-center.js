@@ -36,7 +36,7 @@ function verify (req) {
   }
 }
 
-const initWs = function (app) {
+const initWs = function (app, { rbiBridge } = {}) {
   // upgrade
   app.ws('/upgrade/:id', (ws, req) => {
     verify(req)
@@ -125,6 +125,54 @@ const initWs = function (app) {
       }
     })
   })
+
+  // RBI (remote browser isolation) stream. The offscreen Chromium lives in the
+  // Electron main process, so this socket is terminated here in the child and
+  // bridged to main via rbi-bridge (control over managed-rpc; frames pushed
+  // back from main). Only wired when the managed RPC channel exists.
+  if (rbiBridge) {
+    app.ws('/browser/:id', (ws, req) => {
+      verify(req)
+      const { id } = req.params
+      if (!rbiBridge.register(id, ws)) {
+        return ws.close(1013, 'Too many browser sessions')
+      }
+      let expiry
+      if (req.managedSession) {
+        expiry = setTimeout(() => ws.close(1008, 'Desktop session expired'), req.managedSession.expires - Date.now())
+      }
+      ws.on('message', async (raw) => {
+        if (req.managedSession && !req.managedSession.unlocked) {
+          return ws.close(1008, 'Desktop authentication required')
+        }
+        let msg
+        try {
+          msg = JSON.parse(raw)
+        } catch {
+          return
+        }
+        try {
+          if (msg.t === 'open') {
+            await rbiBridge.open(id, { url: msg.url, width: msg.width, height: msg.height, dpr: msg.dpr })
+          } else if (msg.t === 'mouse' || msg.t === 'key') {
+            await rbiBridge.input(id, msg)
+          } else if (msg.t === 'resize') {
+            await rbiBridge.resize(id, { width: msg.width, height: msg.height, dpr: msg.dpr })
+          } else if (msg.t === 'nav') {
+            await rbiBridge.nav(id, { action: msg.action, url: msg.url })
+          }
+        } catch (err) {
+          log.warn('rbi ws message failed:', err.message)
+          ws.close(1011, 'Browser backend error')
+        }
+      })
+      ws.on('close', () => {
+        if (expiry) clearTimeout(expiry)
+        rbiBridge.unregister(id)
+        rbiBridge.close(id).catch(() => {})
+      })
+    })
+  }
   // end
 }
 
