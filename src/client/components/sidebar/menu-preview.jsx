@@ -10,8 +10,10 @@ import {
 import MenuBtn from '../sys-menu/menu-btn'
 import QuickConnect from '../tabs/quick-connect'
 import UpgradeModal from './upgrade-modal'
+import ActivationModal from './activation-modal'
 import { brand, modals, settingMap, infoTabs, terminalWebType } from '../../common/constants'
 import { isAIDisabled } from '../../common/ai-feature'
+import { isEntitled } from '../../common/entitlement'
 import { groupedSidebarIconIds } from '../../common/left-sidebar-icon-defs'
 import './menu-preview.styl'
 
@@ -57,6 +59,7 @@ const groups = [
 
 export default auto(function GroupedSidebarMenu ({ handleClickBookmark, children }) {
   const [upsell, setUpsell] = useState(null)
+  const [activateOpen, setActivateOpen] = useState(false)
   const { store } = window
   const iconIds = groupedSidebarIconIds(store.config.leftSideBarIcons)
   const configuredGroups = groups.map(group => {
@@ -94,8 +97,35 @@ export default auto(function GroupedSidebarMenu ({ handleClickBookmark, children
     })
   }
 
+  // Browser is a PRO feature gated on the per-device managed entitlement.
+  // Strict when a managed status resolves (desktop IPC always returns a
+  // concrete object, so pending/offline/pro:false close the gate -> activation
+  // modal). If the call REJECTS, the runtime has no managed-connectivity global
+  // at all -- the served web build routes globals over WS to the pinned
+  // anubis-web gateway, whose run-sync allowlist does not expose
+  // getManagedConnectivity -- so entitlement is unreadable there. In that case
+  // we fail open and keep the desktop sidebar gate authoritative.
+  // TODO: gate the web client too once the pinned gateway exposes managed
+  // connectivity (entitlement is currently unreachable from the web build).
+  async function openBrowserGated () {
+    let status
+    try {
+      status = await window.pre.runGlobalAsync('getManagedConnectivity')
+    } catch (e) {
+      actions.browser()
+      return
+    }
+    if (isEntitled(status)) {
+      actions.browser()
+    } else {
+      setActivateOpen(true)
+    }
+  }
+
   function selectItem (item) {
-    if (item.pro) {
+    if (item.key === 'browser') {
+      return openBrowserGated()
+    } else if (item.pro) {
       setUpsell(item.name)
     } else {
       actions[item.key]()
@@ -172,6 +202,11 @@ export default auto(function GroupedSidebarMenu ({ handleClickBookmark, children
         open={upsell !== null}
         feature={upsell || ''}
         onClose={() => setUpsell(null)}
+      />
+      <ActivationModal
+        open={activateOpen}
+        onClose={() => setActivateOpen(false)}
+        onActivated={() => actions.browser()}
       />
     </>
   )

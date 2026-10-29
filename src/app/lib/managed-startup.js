@@ -19,6 +19,8 @@ function startDesktopManaged ({
       status: status.status,
       fingerprint: status.fingerprint,
       url: status.url,
+      pro: status.pro === true,
+      proExpiresAt: typeof status.proExpiresAt === 'number' ? status.proExpiresAt : null,
       error: status.error
     }
     globalState.set('managedConnectivity', visible)
@@ -30,6 +32,7 @@ function startDesktopManaged ({
   }
   const stop = () => {
     if (!stopping) {
+      globalState.set('managedActivate', null)
       stopping = Promise.resolve().then(() => agent?.stop())
       stopping.catch(error => log.warn('Managed connectivity shutdown failed:', error.message))
     }
@@ -49,6 +52,7 @@ function startDesktopManaged ({
       onStatus,
       env
     })
+    globalState.set('managedActivate', key => agent.activate(key))
     agent.start()
   } catch (error) {
     onStatus({ status: 'offline', error: error.message })

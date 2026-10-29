@@ -294,6 +294,10 @@ function initIpc () {
   })
   const asyncGlobals = {
     getManagedConnectivity: () => globalState.get('managedConnectivity') || { status: 'offline' },
+    activateBrowser: (key) => {
+      const fn = globalState.get('managedActivate')
+      return fn ? fn(key) : { ok: false, error: 'offline' }
+    },
     confirmExit: () => {
       globalState.set('confirmExit', true)
     },

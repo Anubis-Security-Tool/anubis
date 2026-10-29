@@ -39,8 +39,9 @@ async function harness (file, store = {}, extra = {}) {
   for (const edit of edits.reverse()) {
     code = code.slice(0, edit.start) + edit.text + code.slice(edit.end)
   }
-  let state
   let cleanup
+  const hooks = []
+  let hookIndex = 0
   const effects = []
   const window = { store, translate: key => key, et: {}, pre: { openExternal: () => {} } }
   const Select = Object.assign(() => null, { displayName: 'Select', Option: 'Option' })
@@ -48,8 +49,11 @@ async function harness (file, store = {}, extra = {}) {
     react: {
       memo: value => value,
       useState: initial => {
-        if (state === undefined) state = initial
-        return [state, value => { state = value }]
+        const i = hookIndex++
+        if (!(i in hooks)) hooks[i] = initial
+        return [hooks[i], value => {
+          hooks[i] = typeof value === 'function' ? value(hooks[i]) : value
+        }]
       },
       useEffect: effect => { cleanup = effect() }
     },
@@ -58,8 +62,9 @@ async function harness (file, store = {}, extra = {}) {
     antd: { Modal: 'Modal', Tooltip: 'Tooltip', Popover: 'Popover', Badge: 'Badge', Select },
     'lucide-react': new Proxy({}, { get: (_, key) => key }),
     '../icons/ui-icons': new Proxy({}, { get: (_, key) => key }),
-    '../../common/constants': { brand: { domains: { site, docs } }, modals, settingMap, infoTabs },
+    '../../common/constants': { brand: { domains: { site, docs } }, modals, settingMap, infoTabs, terminalWebType: 'web' },
     '../../common/ai-feature': { isAIDisabled: () => !!window.et.disableAIFeature },
+    '../../common/entitlement': require('../../client/common/entitlement'),
     '../../common/left-sidebar-icon-defs': defs,
     '../../common/has-active-input': { default: () => false },
     '../sys-menu/menu-btn': { default: 'MenuBtn' },
@@ -67,6 +72,7 @@ async function harness (file, store = {}, extra = {}) {
     '../tabs/quick-connect': { default: 'QuickConnect' },
     './menu-preview': { default: 'GroupedSidebarMenu' },
     './upgrade-modal': { default: 'UpgradeModal' },
+    './activation-modal': { default: 'ActivationModal' },
     './transfer-list': { default: 'TransferList' },
     './side-icon': { default: 'SideIcon' },
     './sidebar-panel': { default: 'SideBarPanel' },
@@ -89,7 +95,10 @@ async function harness (file, store = {}, extra = {}) {
   }
   vm.runInNewContext(code, context, { filename: file })
   return {
-    render: props => context.module.exports(props || {}),
+    render: props => {
+      hookIndex = 0
+      return context.module.exports(props || {})
+    },
     window,
     effects,
     cleanup: () => cleanup()
@@ -121,7 +130,7 @@ function makeStore () {
     ...Object.fromEntries([
       'openSettingSync', 'toggleAIPanel', 'openWidgetsModal', 'openSetting',
       'openAbout', 'toggleLeftSideBar', 'onZoomReset', 'openLeftSidePanel',
-      'setOpenedSideBar'
+      'setOpenedSideBar', 'addTab'
     ].map(name => [name, (...args) => calls.push([name, ...args])]))
   }
   return { store, calls }
@@ -188,10 +197,9 @@ test('only the PRO entries open the upgrade modal with the mapped feature name',
     ['Plugin Store', 'Plugin Store'],
     ['Anubis Osiris — Automation', 'Anubis Osiris'],
     ['Anubis Scarab — DLL Scanner', 'Anubis Scarab'],
-    ['Anubis Aegis — CVE Scanner', 'Anubis Aegis'],
-    ['Browser', 'Browser']
+    ['Anubis Aegis — CVE Scanner', 'Anubis Aegis']
   ]
-  assert.equal(pro.length, 5)
+  assert.equal(pro.length, 4)
   for (const [label, feature] of pro) {
     button(h.render(), label).props.onClick()
     const modal = nodes(h.render(), type('UpgradeModal'))[0]
@@ -201,6 +209,42 @@ test('only the PRO entries open the upgrade modal with the mapped feature name',
     assert.equal(nodes(h.render(), type('UpgradeModal'))[0].props.open, false)
   }
   assert.equal(calls.length, 0)
+})
+
+test('Browser is entitlement-gated: opens a tab when entitled, shows the activation modal otherwise, and fails open when the managed global is unsupported', async () => {
+  const { store, calls } = makeStore()
+  const h = await harness(sidebar + 'menu-preview.jsx', store)
+  // Browser is not a plain upgrade-modal item.
+  assert.equal(nodes(h.render(), type('UpgradeModal'))[0].props.feature, '')
+  assert.equal(nodes(h.render(), type('ActivationModal'))[0].props.open, false)
+
+  // Entitled device -> opens the Browser web tab, no activation modal.
+  h.window.pre.runGlobalAsync = async name => {
+    assert.equal(name, 'getManagedConnectivity')
+    return { pro: true, proExpiresAt: null }
+  }
+  await button(h.render(), 'Browser').props.onClick()
+  const opened = calls[calls.length - 1]
+  assert.equal(opened[0], 'addTab')
+  assert.equal(opened[1].type, 'web')
+  assert.equal(opened[1].url, 'https://www.google.com')
+  assert.equal(opened[1].title, 'Browser')
+  assert.equal(nodes(h.render(), type('ActivationModal'))[0].props.open, false)
+
+  // Not entitled -> activation modal opens, no new tab.
+  const before = calls.length
+  h.window.pre.runGlobalAsync = async () => ({ pro: false, proExpiresAt: null })
+  await button(h.render(), 'Browser').props.onClick()
+  assert.equal(calls.length, before)
+  assert.equal(nodes(h.render(), type('ActivationModal'))[0].props.open, true)
+
+  // Unsupported runtime (web build: managed global rejects) -> fail open.
+  const openedBefore = calls.length
+  h.window.pre.runGlobalAsync = async () => { throw new Error('invalid function: getManagedConnectivity') }
+  await button(h.render(), 'Browser').props.onClick()
+  assert.equal(calls[calls.length - 1][0], 'addTab')
+  assert.equal(calls[calls.length - 1][1].title, 'Browser')
+  assert.equal(calls.length, openedBefore + 1)
 })
 
 test('active states reflect the real settings, bookmark and AI panel state', async () => {

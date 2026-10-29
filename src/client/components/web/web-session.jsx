@@ -226,6 +226,18 @@ export default function WebSession ({ tab, reloadTab }) {
   return (
     <div className='web-session-wrap'>
       {!tab.hideAddressBar && <AddressBar {...addrProps} />}
+      {/*
+        Defense in depth: BrowserPanel is a PRO surface. The authoritative
+        entitlement gate lives in the sidebar (menu-preview.jsx), which reads
+        the per-device managed status before opening this tab. We intentionally
+        do NOT re-check entitlement here: this panel only renders in the web
+        build (!embedded), where globals route over WS to the pinned anubis-web
+        gateway whose run-sync allowlist has no getManagedConnectivity, so
+        entitlement is physically unreadable from the web client. Keeping the
+        sidebar gate authoritative is the agreed approach.
+        TODO: gate the panel directly once the pinned gateway exposes managed
+        connectivity to the web client.
+      */}
       {!embedded && valid && (
         <BrowserPanel
           activeUa={activeUa}
