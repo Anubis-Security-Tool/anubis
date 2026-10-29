@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { auto } from 'manate/react'
 import { Modal } from 'antd'
-import { Check, Crown, Sparkles } from 'lucide-react'
+import { Check, Crown } from 'lucide-react'
 import ExternalLink from '../common/external-link'
 import { brand } from '../../common/constants'
 import './upgrade-modal.styl'
@@ -59,9 +59,6 @@ export default auto(function UpgradeModal ({ open, feature, onClose }) {
       destroyOnClose
     >
       <div className='upgrade-head'>
-        <div className='upgrade-head-icon'>
-          <Sparkles size={22} strokeWidth={1.75} aria-hidden='true' />
-        </div>
         <h2 className='upgrade-title'>Upgrade for More</h2>
         <p className='upgrade-subtitle'>
           {feature

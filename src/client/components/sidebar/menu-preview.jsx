@@ -2,10 +2,10 @@ import { useState } from 'react'
 import { auto } from 'manate/react'
 import { Popover, Tooltip } from 'antd'
 import {
-  SquareTerminal, Swords, Cog, ChevronDown,
+  SquareTerminal, Swords, Cog, ChevronDown, ChevronRight,
   Cpu, BookOpen, Zap, CloudCog, LayoutGrid, Settings,
   Package, Workflow, FileSearch, ShieldAlert, Bot, Globe,
-  Info, CircleHelp, PanelLeftClose, Sparkles
+  Info, CircleHelp, PanelLeftClose, Crown
 } from 'lucide-react'
 import MenuBtn from '../sys-menu/menu-btn'
 import QuickConnect from '../tabs/quick-connect'
@@ -101,17 +101,6 @@ export default auto(function GroupedSidebarMenu ({ handleClickBookmark, children
     <>
       <div className='preview-brand'>
         <MenuBtn store={store} config={store.config} />
-        <div className='preview-brand-right'>
-          <button
-            type='button'
-            className='preview-version-badge'
-            title='Free version'
-            onClick={() => setUpsell('')}
-          >
-            <Sparkles size={13} strokeWidth={2} aria-hidden='true' />
-            <span className='preview-label'>Free version</span>
-          </button>
-        </div>
       </div>
       <nav className='preview-navigation' aria-label='Application sections'>
         {configuredGroups.map(({ label, icon: GroupIcon, items }) => (
@@ -158,6 +147,22 @@ export default auto(function GroupedSidebarMenu ({ handleClickBookmark, children
       <div className='preview-footer' role='group' aria-label='Application controls'>
         {children}
       </div>
+      <button
+        type='button'
+        className='preview-account'
+        title='Free version'
+        aria-label='Free version — upgrade available'
+        onClick={() => setUpsell('')}
+      >
+        <span className='preview-account-icon'>
+          <Crown size={16} strokeWidth={1.75} aria-hidden='true' />
+        </span>
+        <span className='preview-account-text'>
+          <span className='preview-account-name'>Free version</span>
+          <span className='preview-account-sub'>Upgrade available</span>
+        </span>
+        <ChevronRight className='preview-account-chevron' size={15} aria-hidden='true' />
+      </button>
       <UpgradeModal
         open={upsell !== null}
         feature={upsell || ''}

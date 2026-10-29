@@ -52,35 +52,6 @@
       white-space nowrap
       overflow hidden
       text-overflow ellipsis
-    .preview-brand-right
-      display flex
-      align-items center
-      flex-shrink 0
-      margin-left auto
-    .preview-version-badge
-      display inline-flex
-      align-items center
-      gap 4px
-      padding 3px 8px
-      border 1px solid var(--border)
-      border-radius 999px
-      background transparent
-      color var(--text-dark)
-      font-size 11px
-      line-height 15px
-      white-space nowrap
-      cursor pointer
-      transition border-color .15s, color .15s, background .15s
-      > svg
-        color var(--success)
-        flex-shrink 0
-      &:hover
-        border-color var(--success)
-        color var(--text)
-        background var(--main-light)
-      &:focus-visible
-        outline 2px solid var(--primary)
-        outline-offset 1px
   .preview-navigation
     flex 1
     min-height 0
@@ -233,19 +204,74 @@
     .zoom-reset-icon
       color var(--primary)
     .upgrade-icon
-      color var(--success)
+      color var(--primary)
+  .preview-account
+    display flex
+    align-items center
+    gap 10px
+    flex-shrink 0
+    margin 6px 10px 10px
+    padding 8px 10px
+    border 1px solid var(--border)
+    border-radius 10px
+    background var(--main-dark)
+    color var(--text)
+    cursor pointer
+    text-align left
+    transition border-color .15s, background .15s
+    &:hover
+      border-color var(--primary)
+      background var(--main-light)
+    &:focus-visible
+      outline 2px solid var(--primary)
+      outline-offset 1px
+    .preview-account-icon
+      display inline-flex
+      align-items center
+      justify-content center
+      flex-shrink 0
+      width 30px
+      height 30px
+      border-radius 8px
+      background var(--main-light)
+      color var(--primary)
+    .preview-account-text
+      display flex
+      flex-direction column
+      min-width 0
+      flex 1
+      line-height 1.2
+    .preview-account-name
+      font-size 13px
+      font-weight 600
+      color var(--text-light)
+      white-space nowrap
+      overflow hidden
+      text-overflow ellipsis
+    .preview-account-sub
+      font-size 10px
+      color var(--text-dark)
+      white-space nowrap
+      overflow hidden
+      text-overflow ellipsis
+    .preview-account-chevron
+      flex-shrink 0
+      color var(--text-dark)
   &.preview-compact
     .preview-label
     .preview-chevron
     .preview-pro-tag
+    .preview-account-text
+    .preview-account-chevron
     .sidebar-brand-text
       display none
     .preview-brand
       padding 0 5px
       justify-content center
-    .preview-version-badge
-      padding 4px
-      gap 0
+    .preview-account
+      justify-content center
+      margin 6px 5px 8px
+      padding 6px
     .preview-navigation
       padding 10px 5px
     .preview-group[open]::before
@@ -264,5 +290,6 @@
   &.collapsed
     .preview-brand
     .preview-navigation
+    .preview-account
     .preview-footer
       display none
